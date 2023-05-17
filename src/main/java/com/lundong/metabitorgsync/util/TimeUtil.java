@@ -2,6 +2,7 @@ package com.lundong.metabitorgsync.util;
 
 import cn.hutool.core.date.LocalDateTimeUtil;
 
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
@@ -37,5 +38,10 @@ public class TimeUtil {
 			return LocalDateTime.now().
 					format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss+08:00"));
 		}
+	}
+
+	public static String timestampToYMD(String timestamp) {
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+		return format.format(Long.parseLong(timestamp) * 1000);
 	}
 }

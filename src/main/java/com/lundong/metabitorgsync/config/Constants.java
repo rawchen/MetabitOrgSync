@@ -33,6 +33,9 @@ public class Constants {
 	// 列表查询 ExecuteBillQuery
 	public final static String KINGDEE_QUERY = "/Kingdee.BOS.WebApi.ServicesStub.DynamicFormService.ExecuteBillQuery.common.kdsvc";
 
+	// 固定组织NUMBER，北京乾象私募基金管理有限公司
+	public final static String ORG_NUMBER = "QXBJ";
+
 	public final static String APPID = "";
 	public final static String COMPANYID = "";
 	public final static String FORM_ID_DEPT = "";

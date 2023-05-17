@@ -1,5 +1,6 @@
 package com.lundong.metabitorgsync;
 
+import com.kingdee.bos.webapi.sdk.K3CloudApi;
 import com.lundong.metabitorgsync.config.Constants;
 import com.lundong.metabitorgsync.entity.KingdeeUser;
 import com.lundong.metabitorgsync.service.UserService;
@@ -32,6 +33,28 @@ class MetabitOrgSyncApplicationTests {
 		for (KingdeeUser kingdeeUser : kingdeeUsers) {
 			System.out.println(kingdeeUser);
 		}
+	}
+
+	@Test
+	void saveOrgPost() throws Exception {
+		K3CloudApi api = new K3CloudApi();
+		String saveOrgPostData = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
+				"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
+				"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
+				"\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
+				"\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
+				"\"Model\":{\"FPOSTID\":0,\"FCreateOrgId\":{\"FNumber\":\"创建组织\"},\"FNumber\":\"\"," +
+				"\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FName\":\"名称\",\"FHelpCode\":\"\"," +
+				"\"FDept\":{\"FNumber\":\"所属部门\"},\"FEffectDate\":\"1900-01-01\"," +
+				"\"FLapseDate\":\"1900-01-01\",\"FDESCRIPTIONS\":\"\",\"FHRPostSubHead\":{\"FHRPOSTID\":0," +
+				"\"FLEADERPOST\":\"false\"},\"FSHRMapEntity\":{\"FMAPID\":0}," +
+				"\"FSubReportEntity\":[{\"FSubNumber\":\"\"}]}}";
+		saveOrgPostData = saveOrgPostData.replaceAll("所属部门", "BM000022");
+		saveOrgPostData = saveOrgPostData.replaceAll("名称", "测测测岗位");
+		saveOrgPostData = saveOrgPostData.replaceAll("创建组织", "100");
+		saveOrgPostData = saveOrgPostData.replaceAll("使用组织", "100");
+		String saveOrgPostDataResult = api.save("HR_ORG_HRPOST", saveOrgPostData);
+		System.out.println(saveOrgPostDataResult);
 	}
 
 }

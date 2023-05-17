@@ -48,4 +48,9 @@ public class Department {
 	 */
 	private String kingdeeParentId;
 
+	/**
+	 * 部门Number（Kingdee系统）
+	 */
+	private String number;
+
 }

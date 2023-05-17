@@ -14,10 +14,12 @@ import com.lark.oapi.service.contact.v3.model.*;
 import com.lundong.metabitorgsync.config.Constants;
 import com.lundong.metabitorgsync.entity.Department;
 import com.lundong.metabitorgsync.entity.KingdeeDept;
+import com.lundong.metabitorgsync.entity.KingdeeOrgPost;
 import com.lundong.metabitorgsync.entity.User;
 import com.lundong.metabitorgsync.mapper.DepartmentMapper;
 import com.lundong.metabitorgsync.mapper.UserMapper;
 import com.lundong.metabitorgsync.service.DeptService;
+import com.lundong.metabitorgsync.service.OrgPostService;
 import com.lundong.metabitorgsync.util.SignUtil;
 import com.lundong.metabitorgsync.util.StringUtil;
 import com.lundong.metabitorgsync.util.TimeUtil;
@@ -54,6 +56,9 @@ public class EventController {
     @Autowired
     private DeptService deptService;
 
+    @Autowired
+    private OrgPostService orgPostService;
+
     // 注册消息处理器
     private final EventDispatcher EVENT_DISPATCHER = EventDispatcher
             .newBuilder(Constants.VERIFICATION_TOKEN, Constants.ENCRYPT_KEY)
@@ -83,36 +88,6 @@ public class EventController {
                     String join_time = object.getString("join_time");
                     String job_title = object.getString("job_title");
                     String nickname = object.getString("nickname");
-					try {
-						K3CloudApi api = new K3CloudApi();
-						api.save("BD_Empinfo", "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
-								"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
-								"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
-								"\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
-								"\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
-								"\"Model\":{\"FID\":0,\"FName\":\"\",\"FStaffNumber\":\"\",\"FMobile\":\"\",\"FTel\":\"\"," +
-								"\"FEmail\":\"\",\"FDescription\":\"\",\"FAddress\":\"\",\"FCreateOrgId\":{\"FNumber\":\"\"}," +
-								"\"FUseOrgId\":{\"FNumber\":\"\"},\"FBranchID\":{\"FNUMBER\":\"\"},\"FCreateSaler\":\"false\"," +
-								"\"FCreateUser\":\"false\",\"FCreateCashier\":\"false\",\"FCashierGrp\":{\"FNUMBER\":\"\"}," +
-								"\"FUserId\":{\"FUSERACCOUNT\":\"\"},\"FCashierId\":{\"FNUMBER\":\"\"},\"FSalerId\":{\"FNUMBER\":\"\"}," +
-								"\"FPostId\":{\"FNUMBER\":\"\"},\"FJoinDate\":\"1900-01-01\",\"FUniportalNo\":\"\"," +
-								"\"FSHRMapEntity\":{\"FMAPID\":0},\"FPostEntity\":[{\"FENTRYID\":0,\"FWorkOrgId\":{\"FNumber\":\"\"}," +
-								"\"FPostDept\":{\"FNumber\":\"\"},\"FPost\":{\"FNumber\":\"\"},\"FStaffStartDate\":\"1900-01-01\"" +
-								",\"FIsFirstPost\":\"false\",\"FStaffDetails\":0,\"FOperatorType\":\"\"}]," +
-								"\"FBankInfo\":[{\"FBankId\":0,\"FBankCountry\":{\"FNumber\":\"\"},\"FBankCode\":\"\"," +
-								"\"FBankHolder\":\"\",\"FBankTypeRec\":{\"FNUMBER\":\"\"},\"FTextBankDetail\":\"\"," +
-								"\"FBankDetail\":{\"FNUMBER\":\"\"},\"FOpenBankName\":\"\",\"FOpenAddressRec\":\"\"," +
-								"\"FCNAPS\":\"\",\"FBankCurrencyId\":{\"FNUMBER\":\"\"},\"FBankIsDefault\":\"false\"," +
-								"\"FBankDesc\":\"\",\"FCertType\":\"\",\"FIsFromSHR\":\"false\",\"FCertNum\":\"\"}]}}");
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-
-                    requestJson.put("ComCode", "4");
-                    requestJson.put("lastName", name);
-                    requestJson.put("EnglishName1", en_name);
-                    requestJson.put("mobile", StringUtil.mobileDivAreaCode(mobile));
-                    requestJson.put("email", email);
 
                     // 判断这个用户在映射表是否已经存在（防止事件流重复订阅）
                     User userTemp = userMapper.selectOne(new LambdaQueryWrapper<User>()
@@ -121,6 +96,9 @@ public class EventController {
                         log.info("P2UserCreatedV3: 添加失败，重复添加用户：" + name);
                         return;
                     }
+
+					String kingdeeDeptId = "";
+					String kingdeeDeptNumber = "";
 
                     // 拿到飞书-Kingdee映射的部门id
                     log.info("department_ids: {}", department_ids.getString(0));
@@ -132,63 +110,101 @@ public class EventController {
                     }
                     Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, deptId).last("limit 1"));
                     if (department != null && department.getKingdeeDeptId() != null) {
-                        requestJson.put("EmDept", department.getKingdeeDeptId());
+						kingdeeDeptId = department.getKingdeeDeptId();
+                        kingdeeDeptNumber = department.getNumber();
                     } else {
-                        requestJson.put("EmDept", "0");
+						kingdeeDeptId = "0";
+                        kingdeeDeptNumber = "0";
                     }
-                    requestJson.put("JobNum", employee_no);
-                    requestJson.put("sex", "1".equals(gender) ? "F" : "M");
-                    requestJson.put("city", city);
-                    //                    requestJson.put("Leader", leader_user_id);
-                    requestJson.put("Status", StringUtil.employeeConvert(employee_type));                    // A正式B离职C试用
-                    requestJson.put("TimeOfEntry", TimeUtil.timestampToUTC(join_time));
-                    requestJson.put("jobTitle", job_title);
-                    requestJson.put("EnglishName", nickname);
-                    requestJson.put("RowStatus", "A");
-                    requestJson.put("DocEntry", "219");
-                    String requestJsonAddArg = "{\"U_OHEM\":[" + requestJson.toJSONString() + "],}";
+                    String orgPostNumber = "0";
+					try {
+						K3CloudApi api = new K3CloudApi();
 
-                    // 2.接口参数处理
-                    String timestamp = TimeUtil.getTimestamp();
-                    StringBuilder url = new StringBuilder();
-                    Map<String, String> objects = new HashMap<>();
-                    objects.put("APPID", Constants.APPID);
-                    objects.put("COMPANYID", Constants.COMPANYID);
-                    objects.put("TIMESTAMP", timestamp);
-                    objects.put("FORMID", Constants.FORM_ID_USER);
-                    String md5Token = SignUtil.makeMd5Token(objects, Constants.SECRETKEY, requestJsonAddArg);
-                    url.append(Constants.DOMAIN_PORT).append(Constants.ADD)
-                            .append("/").append(Constants.FORM_ID_USER)
-                            .append("/").append(timestamp).append("/").append(md5Token);
-
-                    // 3.调用Kingdee接口
-                    try {
-                        String resultStr = HttpRequest.post(url.toString())
-                                .body(requestJsonAddArg)
-                                .execute()
-                                .body();
-                        log.info("r: {}", resultStr);
-                        if (StringUtils.isNotEmpty(resultStr)) {
-                            JSONObject resultObject = (JSONObject) JSON.parse(resultStr);
-                            String resultCode = resultObject.getString("Code");
-                            if (StringUtils.isNotEmpty(resultCode) && "0".equals(resultCode)) {
-                                // 新增Kingdee用户成功后添加用户到映射表（包含DocEntry）
-                                User user = new User();
-                                user.setName(name);
-//                                user.setPkId(resultObject.getString("Result"));
-                                // user.setKingdeeId();
-                                user.setUserId(user_id);
-                                user.setDeptId(deptId);
-                                userMapper.insert(user);
-
-                                log.info("success: {}", resultStr);
-                            } else {
-                                log.info("fail: {}", resultStr);
+						// 根据所属部门作为过滤条件，调用金蝶查询就任岗位列表接口，
+						// 列表循环匹配名称找对应岗位number，如果匹配不到就新增岗位，取岗位number
+                        List<KingdeeOrgPost> kingdeeOrgPosts = orgPostService.queryOrgPostList("F='" + kingdeeDeptId + "'");
+                        if (kingdeeOrgPosts != null && kingdeeOrgPosts.size() > 0) {
+                            for (KingdeeOrgPost orgPost : kingdeeOrgPosts) {
+                                if (job_title.equals(orgPost.getName())) {
+                                    orgPostNumber = orgPost.getNumber();
+                                    break;
+                                }
+                            }
+                            // 如果根据部门没有找到至少一个岗位信息就新增一个岗位
+                            if ("0".equals(orgPostNumber)) {
+                                String saveOrgPostData = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
+                                        "\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
+                                        "\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
+                                        "\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
+                                        "\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
+                                        "\"Model\":{\"FPOSTID\":0,\"FCreateOrgId\":{\"FNumber\":\"创建组织\"},\"FNumber\":\"\"," +
+                                        "\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FName\":\"名称\",\"FHelpCode\":\"\"," +
+                                        "\"FDept\":{\"FNumber\":\"所属部门\"},\"FEffectDate\":\"1900-01-01\"," +
+                                        "\"FLapseDate\":\"1900-01-01\",\"FDESCRIPTIONS\":\"\",\"FHRPostSubHead\":{\"FHRPOSTID\":0," +
+                                        "\"FLEADERPOST\":\"false\"},\"FSHRMapEntity\":{\"FMAPID\":0}," +
+                                        "\"FSubReportEntity\":[{\"FSubNumber\":\"\"}]}}";
+                                saveOrgPostData = saveOrgPostData.replaceAll("所属部门", kingdeeDeptNumber);
+                                saveOrgPostData = saveOrgPostData.replaceAll("名称", job_title);
+                                saveOrgPostData = saveOrgPostData.replaceAll("创建组织", Constants.ORG_NUMBER);
+                                saveOrgPostData = saveOrgPostData.replaceAll("使用组织", Constants.ORG_NUMBER);
+                                String saveOrgPostDataResult = api.save("HR_ORG_HRPOST", saveOrgPostData);
+                                JSONObject postObject = JSONObject.parseObject(saveOrgPostDataResult);
+                                JSONObject resultObject = (JSONObject) postObject.get("Result");
+                                JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+                                if (responseStatus.getBoolean("IsSuccess")) {
+                                    // 请求成功
+                                    orgPostNumber = resultObject.getString("Number");
+                                }
                             }
                         }
+
+						String staffSaveJson = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
+								"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
+								"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
+								"\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
+								"\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
+								"\"Model\":{\"FID\":0,\"FName\":\"员工姓名\",\"FStaffNumber\":\"员工编号\",\"FMobile\":\"移动电话\",\"FTel\":\"\"," +
+								"\"FEmail\":\"\",\"FDescription\":\"\",\"FAddress\":\"\",\"FCreateOrgId\":{\"FNumber\":\"创建组织\"}," +
+								"\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FBranchID\":{\"FNUMBER\":\"\"},\"FCreateSaler\":\"false\"," +
+								"\"FCreateUser\":\"false\",\"FCreateCashier\":\"false\",\"FCashierGrp\":{\"FNUMBER\":\"\"}," +
+								"\"FUserId\":{\"FUSERACCOUNT\":\"\"},\"FCashierId\":{\"FNUMBER\":\"\"},\"FSalerId\":{\"FNUMBER\":\"\"}," +
+								"\"FPostId\":{\"FNUMBER\":\"\"},\"FJoinDate\":\"1900-01-01\",\"FUniportalNo\":\"\"," +
+								"\"FSHRMapEntity\":{\"FMAPID\":0},\"FPostEntity\":[{\"FENTRYID\":0,\"FWorkOrgId\":{\"FNumber\":\"工作组织\"}," +
+								"\"FPostDept\":{\"FNumber\":\"所属部门\"},\"FPost\":{\"FNumber\":\"就任岗位\"},\"FStaffStartDate\":\"任岗开始日期\"" +
+								",\"FIsFirstPost\":\"false\",\"FStaffDetails\":0,\"FOperatorType\":\"\"}]," +
+								"\"FBankInfo\":[{\"FBankId\":0,\"FBankCountry\":{\"FNumber\":\"\"},\"FBankCode\":\"\"," +
+								"\"FBankHolder\":\"\",\"FBankTypeRec\":{\"FNUMBER\":\"\"},\"FTextBankDetail\":\"\"," +
+								"\"FBankDetail\":{\"FNUMBER\":\"\"},\"FOpenBankName\":\"\",\"FOpenAddressRec\":\"\"," +
+								"\"FCNAPS\":\"\",\"FBankCurrencyId\":{\"FNUMBER\":\"\"},\"FBankIsDefault\":\"false\"," +
+								"\"FBankDesc\":\"\",\"FCertType\":\"\",\"FIsFromSHR\":\"false\",\"FCertNum\":\"\"}]}}";
+						staffSaveJson.replaceAll("员工姓名", name);
+						staffSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
+						staffSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
+						staffSaveJson.replaceAll("员工编号", employee_no);
+						staffSaveJson.replaceAll("所属部门", kingdeeDeptId);
+						staffSaveJson.replaceAll("就任岗位", orgPostNumber);
+						staffSaveJson.replaceAll("工作组织", Constants.ORG_NUMBER);
+                        // 非必填
+                        staffSaveJson.replaceAll("移动电话", mobile);
+                        staffSaveJson.replaceAll("任岗开始日期", TimeUtil.timestampToYMD(join_time));
+                        String saveEmpinfoResult = api.save("BD_Empinfo", staffSaveJson);
+                        JSONObject postObject = JSONObject.parseObject(saveEmpinfoResult);
+                        JSONObject resultObject = (JSONObject) postObject.get("Result");
+                        JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+                        if (responseStatus.getBoolean("IsSuccess")) {
+							User user = User.builder()
+									.name(name)
+									.userId(user_id)
+									.deptId(deptId)
+									.build();
+							userMapper.insert(user);
+                            log.info("saveEmpinfo success: {}", saveEmpinfoResult);
+                        } else {
+                            log.info("saveEmpinfo fail: {}", saveEmpinfoResult);
+                        }
                     } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+						e.printStackTrace();
+					}
                 }
             }).onP2UserUpdatedV3(new ContactService.P2UserUpdatedV3Handler() {
                 // 用户修改
@@ -288,10 +304,11 @@ public class EventController {
 
                     // 根据用户ID查询用户映射表，如果对应的找到用户，就更新用户映射表的部门id最新，名称最新
                     if (user != null) {
-                        User userTemp = new User();
-                        userTemp.setId(user.getId());
-                        userTemp.setName(name);
-                        userTemp.setDeptId(deptId);
+                        User userTemp = User.builder()
+                                .id(user.getId())
+                                .name(name)
+                                .deptId(deptId)
+                                .build();
                         userMapper.updateById(userTemp);
                     }
 

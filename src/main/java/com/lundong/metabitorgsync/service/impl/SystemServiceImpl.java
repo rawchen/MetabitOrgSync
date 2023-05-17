@@ -67,12 +67,14 @@ public class SystemServiceImpl implements SystemService {
 						FeishuDept feishuDept = dept.getValue().get(0);
 						String kingdeeDeptId = null;
 						String kingdeeParentId = null;
+						String kingdeeDeptNumber = null;
 						if (StrUtil.isNotBlank(name)) {
 							List<KingdeeDept> list = kingdeeGroup.get(name);
 							if (CollectionUtil.isNotEmpty(list)) {
 								KingdeeDept kingdeeDept = list.get(0);
 								kingdeeDeptId = kingdeeDept.getDeptId();
 								kingdeeParentId = kingdeeDept.getParentId();
+								kingdeeDeptNumber = kingdeeDept.getNumber();
 							}
 						}
 						return Department.builder()
@@ -81,6 +83,7 @@ public class SystemServiceImpl implements SystemService {
 								.feishuParentId(feishuDept.getParentDepartmentId())
 								.kingdeeDeptId(kingdeeDeptId)
 								.kingdeeParentId(kingdeeParentId)
+								.number(kingdeeDeptNumber)
 								.build();
 					})
 					.collect(Collectors.toList());
@@ -131,11 +134,12 @@ public class SystemServiceImpl implements SystemService {
 		List<User> users = new ArrayList<>();
 
 		for (FeishuUser feishuUser : feishuUsers) {
-			User user = new User();
+			User user = User.builder()
+					.name(feishuUser.getName())
+					.userId(feishuUser.getUserId())
+					.build();
 //            user.setKingdeeId(excelUser.getId());
-			user.setName(feishuUser.getName());
 //            user.setId(excelUser.getId());
-			user.setUserId(feishuUser.getUserId());
 			for (Department department : departments) {
 				if (department.getName().equals(feishuUser.getDeptName())) {
 					user.setDeptId(department.getFeishuDeptId());

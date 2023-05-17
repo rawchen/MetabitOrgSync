@@ -3,6 +3,7 @@ package com.lundong.metabitorgsync.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Builder;
 import lombok.Data;
 
 /**
@@ -12,11 +13,12 @@ import lombok.Data;
  * @date 2023-03-06 9:56
  */
 @Data
+@Builder
 @TableName("user")
 public class User {
 
 	/**
-	 * 飞书ID
+	 * ID
 	 */
 	@TableId(type = IdType.AUTO)
 	private long id;
