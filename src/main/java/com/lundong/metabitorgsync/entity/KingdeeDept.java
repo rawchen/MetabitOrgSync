@@ -16,6 +16,9 @@ public class KingdeeDept {
     @JSONField(name = "FDEPTID")
     private String deptId;
 
-    @JSONField(name = "FPKID")
-    private String pkId;
+    @JSONField(name = "FNUMBER")
+    private String number;
+
+    @JSONField(name = "FPARENTID")
+    private String parentId;
 }

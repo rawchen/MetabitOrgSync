@@ -8,6 +8,7 @@ import com.lundong.metabitorgsync.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -25,15 +26,25 @@ public class UserServiceImpl implements UserService {
 	 * @return
 	 */
 	public List<KingdeeUser> queryUserList() {
+		List<KingdeeUser> kingdeeUserList = new ArrayList<>();
 		K3CloudApi api = new K3CloudApi();
 		try {
-			String resultString = api.executeBillQueryJson("{\"FormId\":\"SEC_User\",\"FieldKeys\":\"FUSERID,FNAME,FPRIMARYGROUP,FDESCRIPTION\",\"FilterString\":[],\"OrderString\":\"\",\"TopRowCount\":0,\"StartRow\":0,\"Limit\":2000,\"SubSystemId\":\"\"}");
-			JSONObject result = (JSONObject) JSONObject.parse(resultString);
-			JSONArray resultArray = (JSONArray) result.get("Result");
+			String resultString = api.executeBillQueryJson("{\"FormId\":\"BD_Empinfo\",\"FieldKeys\":\"FSTAFFID,FNAME,FSTAFFNUMBER,FPostDept\",\"FilterString\":[],\"OrderString\":\"\",\"TopRowCount\":0,\"StartRow\":0,\"Limit\":2000,\"SubSystemId\":\"\"}");
+			JSONArray resultArray = (JSONArray) JSONObject.parse(resultString);
 			if (resultArray == null) {
 				return Collections.emptyList();
 			}
-			return JSONObject.parseArray(resultArray.toJSONString(), KingdeeUser.class);
+
+			for (int i = 0; i < resultArray.size(); i++) {
+				JSONArray jsonArray = (JSONArray) resultArray.get(i);
+				KingdeeUser kingdeeUser = new KingdeeUser();
+				kingdeeUser.setStaffId(jsonArray.getString(0));
+				kingdeeUser.setName(jsonArray.getString(1));
+				kingdeeUser.setNumber(jsonArray.getString(2));
+				kingdeeUser.setKingdeeDeptId(jsonArray.getString(3));
+				kingdeeUserList.add(kingdeeUser);
+			}
+			return kingdeeUserList;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

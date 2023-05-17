@@ -11,7 +11,7 @@ import java.util.List;
 public interface DeptService {
 
 	/**
-	 * 获取SAP部门列表
+	 * 获取Kingdee部门列表
 	 *
 	 * @return
 	 */

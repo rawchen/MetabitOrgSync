@@ -10,18 +10,15 @@ import lombok.Data;
 @Data
 public class KingdeeUser {
 
-    @JSONField(name = "FPKID")
-    private String pkId;
-
-    @JSONField(name = "FUSERID")
-    private String userId;
+    @JSONField(name = "FSTAFFID")
+    private String staffId;
 
     @JSONField(name = "FNAME")
     private String name;
 
-    @JSONField(name = "FLOCALEID")
-    private String localeId;
+    @JSONField(name = "FSTAFFNUMBER")
+    private String number;
 
-    @JSONField(name = "FPRIMARYGROUP")
-    private String primaryGroup;
+    @JSONField(name = "FPostDept")
+    private String kingdeeDeptId;
 }

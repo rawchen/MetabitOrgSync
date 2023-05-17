@@ -8,7 +8,7 @@
 		<version>2.7.10-SNAPSHOT</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.sap360</groupId>
+	<groupId>com.lundong</groupId>
 	<artifactId>MetabitOrgSync</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>MetabitOrgSync</name>

@@ -39,18 +39,13 @@ public class Department {
 	private String feishuParentId;
 
 	/**
-	 * 部门ID（SAP系统）
+	 * 部门ID（Kingdee系统）
 	 */
-	private String sapDeptId;
+	private String kingdeeDeptId;
 
 	/**
-	 * 部门父ID（SAP系统）
+	 * 部门父ID（Kingdee系统）
 	 */
-	private String sapParentId;
-
-	/**
-	 * 单据编号
-	 */
-	private String pkId;
+	private String kingdeeParentId;
 
 }

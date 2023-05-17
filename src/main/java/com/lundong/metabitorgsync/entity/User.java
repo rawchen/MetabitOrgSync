@@ -22,19 +22,19 @@ public class User {
 	private long id;
 
 	/**
-	 * 姓名
-	 */
-	private String name;
-
-	/**
 	 * 飞书用户ID
 	 */
 	private String userId;
 
 	/**
-	 * 单据编号
+	 * 金蝶用户ID
 	 */
-	private String pkId;
+	private String staffId;
+
+	/**
+	 * 姓名
+	 */
+	private String name;
 
 	/**
 	 * 飞书部门ID

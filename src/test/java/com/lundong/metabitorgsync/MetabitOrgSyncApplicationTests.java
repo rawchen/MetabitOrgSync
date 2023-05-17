@@ -1,7 +1,7 @@
 package com.lundong.metabitorgsync;
 
 import com.lundong.metabitorgsync.config.Constants;
-import com.lundong.metabitorgsync.entity.SapUser;
+import com.lundong.metabitorgsync.entity.KingdeeUser;
 import com.lundong.metabitorgsync.service.UserService;
 import com.lundong.metabitorgsync.service.impl.UserServiceImpl;
 import com.lundong.metabitorgsync.util.SignUtil;
@@ -12,7 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.util.List;
 
 @SpringBootTest
-class SapOrgSyncApplicationTests {
+class MetabitOrgSyncApplicationTests {
 
 	@Test
 	void contextLoads() {
@@ -28,9 +28,9 @@ class SapOrgSyncApplicationTests {
 		System.out.println(result);
 
 		UserService userService = new UserServiceImpl();
-		List<SapUser> sapUsers = userService.queryUserList();
-		for (SapUser sapUser : sapUsers) {
-			System.out.println(sapUser);
+		List<KingdeeUser> kingdeeUsers = userService.queryUserList();
+		for (KingdeeUser kingdeeUser : kingdeeUsers) {
+			System.out.println(kingdeeUser);
 		}
 	}
 

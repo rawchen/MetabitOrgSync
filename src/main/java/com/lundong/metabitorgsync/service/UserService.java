@@ -11,7 +11,7 @@ import java.util.List;
 public interface UserService {
 
 	/**
-	 * 获取SAP用户列表
+	 * 获取Kingdee用户列表
 	 *
 	 * @return
 	 */

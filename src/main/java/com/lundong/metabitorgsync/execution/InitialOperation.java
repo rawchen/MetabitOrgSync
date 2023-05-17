@@ -21,9 +21,9 @@ public class InitialOperation implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) throws Exception {
-//		String resultDept = systemService.initDepartment();
-//		System.out.println("初始化部门：" + resultDept);
-//		String resultUser = systemService.initUser();
-//		System.out.println("初始化用户：" + resultUser);
+		String resultDept = systemService.initDepartment();
+		System.out.println("初始化部门：" + resultDept);
+		String resultUser = systemService.initUser();
+		System.out.println("初始化用户：" + resultUser);
 	}
 }

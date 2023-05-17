@@ -22,7 +22,7 @@ import java.util.*;
 public class SignUtil {
 
 	/**
-	 * SAP系统自定义签名规则
+	 * Kingdee系统自定义签名规则
 	 * @param objects
 	 * @param secretKey
 	 * @param requestJson
