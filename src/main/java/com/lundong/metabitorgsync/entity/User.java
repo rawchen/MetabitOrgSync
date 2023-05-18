@@ -42,4 +42,9 @@ public class User {
 	 * 飞书部门ID
 	 */
 	private String deptId;
+
+	/**
+	 * 金蝶实体主键
+	 */
+	private String fid;
 }

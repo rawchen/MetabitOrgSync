@@ -152,6 +152,7 @@ public class SystemServiceImpl implements SystemService {
 			for (KingdeeUser kingdeeUser : kingdeeUsers) {
 				if (feishuUser.getName().equals(kingdeeUser.getName())) {
 					user.setStaffId(kingdeeUser.getStaffId());
+					user.setFid(kingdeeUser.getFid());
 					break;
 				}
 			}

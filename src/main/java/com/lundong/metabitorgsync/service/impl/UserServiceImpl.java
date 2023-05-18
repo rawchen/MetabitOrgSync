@@ -29,7 +29,7 @@ public class UserServiceImpl implements UserService {
 		List<KingdeeUser> kingdeeUserList = new ArrayList<>();
 		K3CloudApi api = new K3CloudApi();
 		try {
-			String resultString = api.executeBillQueryJson("{\"FormId\":\"BD_Empinfo\",\"FieldKeys\":\"FSTAFFID,FNAME,FSTAFFNUMBER,FPostDept\",\"FilterString\":[],\"OrderString\":\"\",\"TopRowCount\":0,\"StartRow\":0,\"Limit\":2000,\"SubSystemId\":\"\"}");
+			String resultString = api.executeBillQueryJson("{\"FormId\":\"BD_Empinfo\",\"FieldKeys\":\"FSTAFFID,FNAME,FSTAFFNUMBER,FPostDept,FID\",\"FilterString\":[],\"OrderString\":\"\",\"TopRowCount\":0,\"StartRow\":0,\"Limit\":2000,\"SubSystemId\":\"\"}");
 			JSONArray resultArray = (JSONArray) JSONObject.parse(resultString);
 			if (resultArray == null) {
 				return Collections.emptyList();
@@ -42,6 +42,7 @@ public class UserServiceImpl implements UserService {
 				kingdeeUser.setName(jsonArray.getString(1));
 				kingdeeUser.setNumber(jsonArray.getString(2));
 				kingdeeUser.setKingdeeDeptId(jsonArray.getString(3));
+				kingdeeUser.setFid(jsonArray.getString(4));
 				kingdeeUserList.add(kingdeeUser);
 			}
 			return kingdeeUserList;

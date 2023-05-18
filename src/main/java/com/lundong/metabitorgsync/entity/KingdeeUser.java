@@ -21,4 +21,7 @@ public class KingdeeUser {
 
     @JSONField(name = "FPostDept")
     private String kingdeeDeptId;
+
+    @JSONField(name = "FID")
+    private String fid;
 }

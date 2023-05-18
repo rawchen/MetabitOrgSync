@@ -1,7 +1,5 @@
 package com.lundong.metabitorgsync.controller;
 
-import cn.hutool.http.HttpRequest;
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -24,16 +22,13 @@ import com.lundong.metabitorgsync.util.SignUtil;
 import com.lundong.metabitorgsync.util.StringUtil;
 import com.lundong.metabitorgsync.util.TimeUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * @author RawChen
@@ -59,6 +54,8 @@ public class EventController {
     @Autowired
     private OrgPostService orgPostService;
 
+	private final K3CloudApi api = new K3CloudApi();
+
     // 注册消息处理器
     private final EventDispatcher EVENT_DISPATCHER = EventDispatcher
             .newBuilder(Constants.VERIFICATION_TOKEN, Constants.ENCRYPT_KEY)
@@ -69,25 +66,23 @@ public class EventController {
                     log.info("P2UserCreatedV3: {}", Jsons.DEFAULT.toJson(event));
                     // 处理用户创建事件
                     // 1.获取处理订阅消息体
-                    JSONObject requestJson = new JSONObject();
                     String resultJson = Jsons.DEFAULT.toJson(event);
                     JSONObject eventsObject = (JSONObject) JSONObject.parse(resultJson);
                     JSONObject eventObject = (JSONObject) eventsObject.get("event");
                     JSONObject object = (JSONObject) eventObject.get("object");
                     String user_id = object.getString("user_id");
                     String name = object.getString("name");
-                    String en_name = object.getString("en_name");
                     String mobile = object.getString("mobile");
-                    String email = object.getString("email");
                     JSONArray department_ids = (JSONArray) object.get("department_ids");
                     String employee_no = object.getString("employee_no");
-                    String gender = object.getString("gender");
-                    String city = object.getString("city");
-//                    String leader_user_id = object.getString("leader_user_id");
-                    String employee_type = object.getString("employee_type");
                     String join_time = object.getString("join_time");
                     String job_title = object.getString("job_title");
-                    String nickname = object.getString("nickname");
+//                    String email = object.getString("email");
+//                    String gender = object.getString("gender");
+//                    String city = object.getString("city");
+//                    String employee_type = object.getString("employee_type");
+//                    String nickname = object.getString("nickname");
+//                    String leader_user_id = object.getString("leader_user_id");
 
                     // 判断这个用户在映射表是否已经存在（防止事件流重复订阅）
                     User userTemp = userMapper.selectOne(new LambdaQueryWrapper<User>()
@@ -118,8 +113,6 @@ public class EventController {
                     }
                     String orgPostNumber = "0";
 					try {
-						K3CloudApi api = new K3CloudApi();
-
 						// 根据所属部门作为过滤条件，调用金蝶查询就任岗位列表接口，
 						// 列表循环匹配名称找对应岗位number，如果匹配不到就新增岗位，取岗位number
                         List<KingdeeOrgPost> kingdeeOrgPosts = orgPostService.queryOrgPostList("F='" + kingdeeDeptId + "'");
@@ -185,7 +178,7 @@ public class EventController {
 						staffSaveJson.replaceAll("就任岗位", orgPostNumber);
 						staffSaveJson.replaceAll("工作组织", Constants.ORG_NUMBER);
                         // 非必填
-                        staffSaveJson.replaceAll("移动电话", mobile);
+                        staffSaveJson.replaceAll("移动电话", StringUtil.mobileDivAreaCode(mobile));
                         staffSaveJson.replaceAll("任岗开始日期", TimeUtil.timestampToYMD(join_time));
                         String saveEmpinfoResult = api.save("BD_Empinfo", staffSaveJson);
                         JSONObject postObject = JSONObject.parseObject(saveEmpinfoResult);
@@ -193,6 +186,7 @@ public class EventController {
                         JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
                         if (responseStatus.getBoolean("IsSuccess")) {
 							User user = User.builder()
+									.fid(resultObject.getString(""))
 									.name(name)
 									.userId(user_id)
 									.deptId(deptId)
@@ -211,7 +205,6 @@ public class EventController {
                 @Override
                 public void handle(P2UserUpdatedV3 event) throws Exception {
                     log.info("P2UserUpdatedV3: {}", Jsons.DEFAULT.toJson(event));
-                    JSONObject requestJson = new JSONObject();
                     String resultJson = Jsons.DEFAULT.toJson(event);
                     JSONObject eventsObject = (JSONObject) JSONObject.parse(resultJson);
                     JSONObject eventObject = (JSONObject) eventsObject.get("event");
@@ -223,154 +216,169 @@ public class EventController {
                     String email = object.getString("email");
                     JSONArray department_ids = (JSONArray) object.get("department_ids");
                     String employee_no = object.getString("employee_no");
-                    String gender = object.getString("gender");
-                    String city = object.getString("city");
-//                    String leader_user_id = object.getString("leader_user_id");
-                    String employee_type = object.getString("employee_type");
                     String join_time = object.getString("join_time");
                     String job_title = object.getString("job_title");
-                    String nickname = object.getString("nickname");
 
-                    requestJson.put("ComCode", "4");
-                    requestJson.put("lastName", name);
-                    requestJson.put("EnglishName1", en_name);
-                    requestJson.put("mobile", StringUtil.mobileDivAreaCode(mobile));
-                    requestJson.put("email", email);
+					String kingdeeDeptId = "";
+					String kingdeeDeptNumber = "";
 
-                    // 拿到飞书-Kingdee映射的部门id
-                    log.info("department_ids: {}", department_ids.getString(0));
-                    String deptIdAndName = SignUtil.getDepartmentIdAndName(department_ids.getString(0));
-                    String deptId = "";
-                    if (deptIdAndName.contains(",")) {
-                        String[] split = deptIdAndName.split(",");
-                        deptId = split[0];
-                    }
-                    Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, deptId).last("limit 1"));
-                    if (department != null && department.getKingdeeDeptId() != null) {
-                        requestJson.put("EmDept", department.getKingdeeDeptId());
-                    } else {
-                        requestJson.put("EmDept", "0");
-                    }
+					// 拿到飞书-Kingdee映射的部门id
+					log.info("department_ids: {}", department_ids.getString(0));
+					String deptIdAndName = SignUtil.getDepartmentIdAndName(department_ids.getString(0));
+					String deptId = "";
+					if (deptIdAndName.contains(",")) {
+						String[] split = deptIdAndName.split(",");
+						deptId = split[0];
+					}
+					Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, deptId).last("limit 1"));
+					if (department != null && department.getKingdeeDeptId() != null) {
+						kingdeeDeptId = department.getKingdeeDeptId();
+						kingdeeDeptNumber = department.getNumber();
+					} else {
+						kingdeeDeptId = "0";
+						kingdeeDeptNumber = "0";
+					}
+					String orgPostNumber = "0";
 
-                    // 根据飞书user_id查询kingdee单据id（映射好的用户数据库查）
-                    User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getUserId, user_id).last("limit 1"));
-                    String staffId = "";
-                    if (user != null && user.getStaffId() != null) {
-                        staffId = user.getStaffId();
-                    } else {
-                        staffId = "0";
-                        log.info("用户修改事件查询不到用户staffId: {}", user_id);
-                    }
+					// 根据飞书user_id查询kingdee单据id（映射好的用户数据库查）
+					User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getUserId, user_id).last("limit 1"));
+					String staffId = "";
+					String fid = "";
+					if (user != null && user.getStaffId() != null && user.getFid() != null) {
+						staffId = user.getStaffId();
+						fid = user.getFid();
+					} else {
+						staffId = "0";
+						fid = "0";
+						log.info("用户修改事件查询不到用户staffId: {}", user_id);
+					}
 
-                    requestJson.put("JobNum", employee_no);
-                    requestJson.put("sex", "1".equals(gender) ? "F" : "M");
-                    requestJson.put("city", city);
-//                    requestJson.put("Leader", leader_user_id);
-                    requestJson.put("Status", StringUtil.employeeConvert(employee_type));                    // A正式B离职C试用
-                    requestJson.put("TimeOfEntry", TimeUtil.timestampToUTC(join_time));
-                    requestJson.put("jobTitle", job_title);
-                    requestJson.put("EnglishName", nickname);
-                    requestJson.put("RowStatus", "U");
-                    String requestJsonAddArg = "{\"U_OHEM\":[" + requestJson.toJSONString() + "],}";
+					try {
+						// 根据所属部门作为过滤条件，调用金蝶查询就任岗位列表接口，
+						// 列表循环匹配名称找对应岗位number，如果匹配不到就新增岗位，取岗位number
+						List<KingdeeOrgPost> kingdeeOrgPosts = orgPostService.queryOrgPostList("F='" + kingdeeDeptId + "'");
+						if (kingdeeOrgPosts != null && kingdeeOrgPosts.size() > 0) {
+							for (KingdeeOrgPost orgPost : kingdeeOrgPosts) {
+								if (job_title.equals(orgPost.getName())) {
+									orgPostNumber = orgPost.getNumber();
+									break;
+								}
+							}
+							// 如果根据部门没有找到至少一个岗位信息就新增一个岗位
+							if ("0".equals(orgPostNumber)) {
+								String saveOrgPostData = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
+										"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
+										"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
+										"\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
+										"\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
+										"\"Model\":{\"FPOSTID\":0,\"FCreateOrgId\":{\"FNumber\":\"创建组织\"},\"FNumber\":\"\"," +
+										"\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FName\":\"名称\",\"FHelpCode\":\"\"," +
+										"\"FDept\":{\"FNumber\":\"所属部门\"},\"FEffectDate\":\"1900-01-01\"," +
+										"\"FLapseDate\":\"1900-01-01\",\"FDESCRIPTIONS\":\"\",\"FHRPostSubHead\":{\"FHRPOSTID\":0," +
+										"\"FLEADERPOST\":\"false\"},\"FSHRMapEntity\":{\"FMAPID\":0}," +
+										"\"FSubReportEntity\":[{\"FSubNumber\":\"\"}]}}";
+								saveOrgPostData = saveOrgPostData.replaceAll("所属部门", kingdeeDeptNumber);
+								saveOrgPostData = saveOrgPostData.replaceAll("名称", job_title);
+								saveOrgPostData = saveOrgPostData.replaceAll("创建组织", Constants.ORG_NUMBER);
+								saveOrgPostData = saveOrgPostData.replaceAll("使用组织", Constants.ORG_NUMBER);
+								String saveOrgPostDataResult = api.save("HR_ORG_HRPOST", saveOrgPostData);
+								JSONObject postObject = JSONObject.parseObject(saveOrgPostDataResult);
+								JSONObject resultObject = (JSONObject) postObject.get("Result");
+								JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+								if (responseStatus.getBoolean("IsSuccess")) {
+									// 请求成功
+									orgPostNumber = resultObject.getString("Number");
+								}
+							}
+						}
 
-                    // 2.接口参数处理
-                    String timestamp = TimeUtil.getTimestamp();
-                    StringBuilder url = new StringBuilder();
-                    Map<String, String> objects = new HashMap<>();
-                    objects.put("APPID", Constants.APPID);
-                    objects.put("COMPANYID", Constants.COMPANYID);
-                    objects.put("TIMESTAMP", timestamp);
-                    objects.put("FORMID", Constants.FORM_ID_USER);
-                    objects.put("DOCENTRY", staffId);
-                    String md5Token = SignUtil.makeMd5Token(objects, Constants.SECRETKEY, requestJsonAddArg);
-                    url.append(Constants.DOMAIN_PORT).append(Constants.UPDATE)
-                            .append("/").append(Constants.FORM_ID_USER)
-                            .append("/").append(staffId)
-                            .append("/").append(timestamp).append("/").append(md5Token);
-                    log.info("修改用户事件url: {}", url);
-                    // 3.调用Kingdee接口
-                    String resultStr = HttpRequest.post(url.toString())
-                            .body(requestJsonAddArg).execute().body();
-                    log.info("r: {}", resultStr);
-                    if (StringUtils.isNotEmpty(resultStr)) {
-                        JSONObject resultObject = (JSONObject) JSON.parse(resultStr);
-                        String resultCode = resultObject.getString("Code");
-                        if (StringUtils.isNotEmpty(resultCode) && "0".equals(resultCode)) {
-                            log.info("success: {}", resultStr);
-                        } else {
-                            log.info("fail: {}", resultStr);
-                        }
-                    }
-
-                    // 根据用户ID查询用户映射表，如果对应的找到用户，就更新用户映射表的部门id最新，名称最新
-                    if (user != null) {
-                        User userTemp = User.builder()
-                                .id(user.getId())
-                                .name(name)
-                                .deptId(deptId)
-                                .build();
-                        userMapper.updateById(userTemp);
-                    }
-
+						String staffSaveJson = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
+								"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
+								"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
+								"\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
+								"\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
+								"\"Model\":{\"FID\":\"实体主键\",\"FName\":\"员工姓名\",\"FStaffNumber\":\"员工编号\",\"FMobile\":\"移动电话\",\"FTel\":\"\"," +
+								"\"FEmail\":\"\",\"FDescription\":\"\",\"FAddress\":\"\",\"FCreateOrgId\":{\"FNumber\":\"创建组织\"}," +
+								"\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FBranchID\":{\"FNUMBER\":\"\"},\"FCreateSaler\":\"false\"," +
+								"\"FCreateUser\":\"false\",\"FCreateCashier\":\"false\",\"FCashierGrp\":{\"FNUMBER\":\"\"}," +
+								"\"FUserId\":{\"FUSERACCOUNT\":\"\"},\"FCashierId\":{\"FNUMBER\":\"\"},\"FSalerId\":{\"FNUMBER\":\"\"}," +
+								"\"FPostId\":{\"FNUMBER\":\"\"},\"FJoinDate\":\"1900-01-01\",\"FUniportalNo\":\"\"," +
+								"\"FSHRMapEntity\":{\"FMAPID\":0},\"FPostEntity\":[{\"FENTRYID\":0,\"FWorkOrgId\":{\"FNumber\":\"工作组织\"}," +
+								"\"FPostDept\":{\"FNumber\":\"所属部门\"},\"FPost\":{\"FNumber\":\"就任岗位\"},\"FStaffStartDate\":\"任岗开始日期\"" +
+								",\"FIsFirstPost\":\"false\",\"FStaffDetails\":0,\"FOperatorType\":\"\"}]," +
+								"\"FBankInfo\":[{\"FBankId\":0,\"FBankCountry\":{\"FNumber\":\"\"},\"FBankCode\":\"\"," +
+								"\"FBankHolder\":\"\",\"FBankTypeRec\":{\"FNUMBER\":\"\"},\"FTextBankDetail\":\"\"," +
+								"\"FBankDetail\":{\"FNUMBER\":\"\"},\"FOpenBankName\":\"\",\"FOpenAddressRec\":\"\"," +
+								"\"FCNAPS\":\"\",\"FBankCurrencyId\":{\"FNUMBER\":\"\"},\"FBankIsDefault\":\"false\"," +
+								"\"FBankDesc\":\"\",\"FCertType\":\"\",\"FIsFromSHR\":\"false\",\"FCertNum\":\"\"}]}}";
+						staffSaveJson.replaceAll("实体主键", fid);
+						staffSaveJson.replaceAll("员工姓名", name);
+						staffSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
+						staffSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
+						staffSaveJson.replaceAll("员工编号", employee_no);
+						staffSaveJson.replaceAll("所属部门", kingdeeDeptId);
+						staffSaveJson.replaceAll("就任岗位", orgPostNumber);
+						staffSaveJson.replaceAll("工作组织", Constants.ORG_NUMBER);
+						// 非必填
+						staffSaveJson.replaceAll("移动电话", StringUtil.mobileDivAreaCode(mobile));
+						staffSaveJson.replaceAll("任岗开始日期", TimeUtil.timestampToYMD(join_time));
+						String saveEmpinfoResult = api.save("BD_Empinfo", staffSaveJson);
+						JSONObject postObject = JSONObject.parseObject(saveEmpinfoResult);
+						JSONObject resultObject = (JSONObject) postObject.get("Result");
+						JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+						// 金蝶修改成功，映射表更新用户
+						if (responseStatus.getBoolean("IsSuccess")) {
+							User userTemp = User.builder()
+									.fid(fid)
+									.staffId(staffId)
+									.name(name)
+									.deptId(deptId)
+									.build();
+							userMapper.updateById(userTemp);
+							log.info("saveEmpinfo success: {}", saveEmpinfoResult);
+						} else {
+							log.info("saveEmpinfo fail: {}", saveEmpinfoResult);
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
                 }
             }).onP2UserDeletedV3(new ContactService.P2UserDeletedV3Handler() {
                 // 用户删除
                 @Override
                 public void handle(P2UserDeletedV3 event) throws Exception {
                     log.info("P2UserDeletedV3: {}", Jsons.DEFAULT.toJson(event));
-                    // 准备docEntry和飞书user_id
                     String resultJson = Jsons.DEFAULT.toJson(event);
                     JSONObject eventsObject = (JSONObject) JSONObject.parse(resultJson);
                     JSONObject eventObject = (JSONObject) eventsObject.get("event");
                     JSONObject object = (JSONObject) eventObject.get("object");
                     String user_id = object.getString("user_id");
                     User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getUserId, user_id).last("limit 1"));
-                    String staffId = "";
-                    if (user != null && user.getStaffId() != null) {
-                        staffId = user.getStaffId();
+                    String fid = "";
+                    if (user != null && user.getFid() != null) {
+						fid = user.getFid();
                     } else {
-                        staffId = "0";
-                        log.info("用户删除事件查询不到用户staffId: {}", user_id);
+						fid = "0";
+                        log.info("用户删除事件查询不到用户Fid: {}", user_id);
                     }
 
-                    // Kingdee删除，根据映射表的docEntry
-                    StringBuilder url = new StringBuilder();
-                    String timestamp = TimeUtil.getTimestamp();
-                    Map<String, String> objects = new HashMap<>();
-                    objects.put("APPID", Constants.APPID);
-                    objects.put("COMPANYID", Constants.COMPANYID);
-                    objects.put("FORMID",   Constants.FORM_ID_USER);
-                    objects.put("TIMESTAMP", timestamp);
-                    objects.put("DOCENTRY", staffId);
-                    JSONObject requestJson = new JSONObject();
-                    requestJson.put("ComCode", "4");
-//                    requestJson.put("lastName", "1");
-//                    requestJson.put("EnglishName1", "1");
-//                    requestJson.put("mobile", "1");
-//                    requestJson.put("email", "123@qq.com");
-//                    requestJson.put("EmDept", "123");
-                    requestJson.put("Status", "B");
-                    requestJson.put("RowStatus", "D");
-                    String requestJsonAddArg = "{\"U_OHEM\":[" + requestJson.toJSONString() + "],}";
-                    String md5Token = SignUtil.makeMd5Token(objects, Constants.SECRETKEY, requestJsonAddArg);
-                    url.append(Constants.DOMAIN_PORT).append(Constants.UPDATE)
-                            .append("/").append(Constants.FORM_ID_USER)
-                            .append("/").append(staffId)
-                            .append("/").append(timestamp)
-                            .append("/").append(md5Token);
-                    System.out.println("url:" + url);
                     try {
-                        String s = HttpRequest.post(url.toString())
-                                .body(requestJsonAddArg)
-                                .execute()
-                                .body();
-                        System.out.println("r:" + s);
+						String staffDeleteJson = "{\"CreateOrgId\":0,\"Numbers\":[],\"ids\":\"实体主键\",\"NetworkCtrl\":\"\"}";
+						staffDeleteJson.replaceAll("实体主键", fid);
+						String deleteEmpinfoResult = api.delete("BD_Empinfo", staffDeleteJson);
+						JSONObject postObject = JSONObject.parseObject(deleteEmpinfoResult);
+						JSONObject resultObject = (JSONObject) postObject.get("Result");
+						JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+						// 金蝶删除成功，映射表删除用户
+						if (responseStatus.getBoolean("IsSuccess")) {
+							userMapper.deleteById(user.getId());
+							log.info("deleteEmpinfo success: {}", deleteEmpinfoResult);
+						} else {
+							log.info("deleteEmpinfo fail: {}", deleteEmpinfoResult);
+						}
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    // 关系映射表删除根据user_id
-                    userMapper.deleteById(user.getId());
-
                 }
             })
             .onP2DepartmentCreatedV3(new ContactService.P2DepartmentCreatedV3Handler() {
@@ -389,92 +397,73 @@ public class EventController {
                     // 调用自建应用根据父部门id：od-xxx获取部门名和导出的id样例
                     String deptIdAndName = SignUtil.getDepartmentIdAndName(parent_department_id);
                     String deptParentId = "";
-                    String deptParentName = "";
+                    String deptParentNumber = "";
                     if (deptIdAndName.startsWith("0,")) {
-                        deptParentId = "10";
-                        deptParentName = "深圳市联创杰科技有限公司";
+                        deptParentId = "";
                     } else if (deptIdAndName.contains(",")
                             && deptIdAndName.split(",")[0] != null
                             && deptIdAndName.split(",")[1] != null) {
                         String[] split = deptIdAndName.split(",");
                         deptParentId = split[0];
-                        deptParentName = split[1];
-                    } else {
-                        deptParentId = "";
-                        deptParentName = "";
                     }
 
-                    // Kingdee新增部门
-                    String formID = "-96134";
-                    String requestJson = "{\n" +
-                            "    \"U_OEPT\":[\n" +
-                            "        {\n" +
-                            "            \"DocEntry\":1,\n" +
-                            "            \"RowStatus\":\"A\"\n" +
-                            "        }\n" +
-                            "    ],\n" +
-                            "    \"U_EPT1\":[\n" +
-                            "        {\n" +
-                            "            \"ParentName\":\"" + deptParentName + "\",\n" +
-                            "            \"DeptName\":\"" + name + "\",\n" +
-                            "            \"LineNum\":1,\n" +
-                            "            \"RowStatus\":\"A\",\n" +
-                            "            \"DocEntry\":2\n" +
-                            "        }\n" +
-                            "    ]\n" +
-                            "}";
-                    StringBuilder url = new StringBuilder();
-                    String timestamp = TimeUtil.getTimestamp();
-                    Map<String, String> objects = new HashMap<>();
-                    objects.put("APPID", Constants.APPID);
-                    objects.put("COMPANYID", Constants.COMPANYID);
-                    objects.put("FORMID", formID);
-                    objects.put("TIMESTAMP", timestamp);
-                    String md5Token = SignUtil.makeMd5Token(objects, Constants.SECRETKEY, requestJson);
-                    url.append(Constants.DOMAIN_PORT).append(Constants.ADD)
-                            .append("/").append(formID)
-                            .append("/").append(timestamp)
-                            .append("/").append(md5Token);
-                    System.out.println("url:" + url);
-                    String s = HttpRequest.post(url.toString())
-                            .body(requestJson)
-                            .execute()
-                            .body();
-                    System.out.println("r:" + s);
+					// 根据飞书部门id查询部门number
+					Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, deptParentId).last("limit 1"));
+					if (department != null && department.getNumber() != null) {
+						deptParentNumber = department.getNumber();
+					}
 
-                    // 插入部门后解析Result出来的docEntry，去Kingdee系统部门列表遍历拿到
-                    String deptCode = "";
-                    String parentCode = "";
-                    JSONObject result = (JSONObject) JSONObject.parse(s);
-                    String resultDocEntry = result.getString("Result");
-                    if (resultDocEntry != null) {
-                        List<KingdeeDept> kingdeeDepts = deptService.queryDepartmentList();
-                        for (KingdeeDept kingdeeDept : kingdeeDepts) {
-                            if (kingdeeDept.getNumber().equals(resultDocEntry)) {
-                                parentCode = kingdeeDept.getParentId();
-                                deptCode = kingdeeDept.getDeptId();
-                                break;
-                            }
-                        }
-                    }
+					try {
+						String deptSaveJson = "{\"Model\":{\"FCreateOrgId\":{\"Number\":\"1\"}," +
+								"\"FNumber\":\"\",\"FUseOrgId\":{\"Number\":\"1\"},\"FName\":\"部门名称\"," +
+								"\"FHelpCode\":\"\",\"FParentID\":{\"FNumber\":\"父部门\"}," +
+								"\"FFullName\":\"\",\"FEffectDate\":\"1900-01-01\"," +
+								"\"FLapseDate\":\"9999-01-01\",\"FDescription\":\"\"," +
+								"\"FDeptProperty\":{\"FNumber\":\"\"},\"FSHRMapEntity\":{\"FMAPID\":0}}}";
+						deptSaveJson.replaceAll("部门名称", name);
+						deptSaveJson.replaceAll("父部门", deptParentNumber);
+						String deptSaveResult = api.save("BD_Department", deptSaveJson);
+						JSONObject postObject = JSONObject.parseObject(deptSaveResult);
+						JSONObject resultObject = (JSONObject) postObject.get("Result");
+						JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+						// 金蝶新增部门成功，获取id，映射表创建部门
+						if (responseStatus.getBoolean("IsSuccess")) {
+							String kingdeeDeptId = resultObject.getString("Id");
+							String number = resultObject.getString("Number");
+							String kingdeeParentId = "";
 
-                    // 映射表新增部门
-                    Department department = Department.builder()
-                            .name(name)
-                            .feishuDeptId(department_id)
-                            .feishuParentId(deptParentId)
-                            .kingdeeParentId(parentCode)
-                            .kingdeeDeptId(deptCode)
-                            .build();
-                    departmentMapper.insert(department);
+							// 根据Number查询金蝶父部门ID
+							List<KingdeeDept> kingdeeDepts = deptService.queryDepartmentList();
+							for (KingdeeDept kingdeeDept : kingdeeDepts) {
+								if (kingdeeDept.getNumber().equals(number)) {
+									kingdeeParentId = kingdeeDept.getParentId();
+									break;
+								}
+							}
 
+							// 映射表新增部门
+							Department departmentTemp = Department.builder()
+									.name(name)
+									.feishuDeptId(department_id)
+									.feishuParentId(deptParentId)
+									.kingdeeParentId(kingdeeParentId)
+									.kingdeeDeptId(kingdeeDeptId)
+									.number(number)
+									.build();
+							departmentMapper.insert(departmentTemp);
+							log.info("saveDepartment success: {}", deptSaveResult);
+						} else {
+							log.info("saveDepartment fail: {}", deptSaveResult);
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
                 }
             }).onP2DepartmentUpdatedV3(new ContactService.P2DepartmentUpdatedV3Handler() {
                 // 部门修改
                 @Override
                 public void handle(P2DepartmentUpdatedV3 event) throws Exception {
                     log.info("P2DepartmentUpdatedV3: {}", Jsons.DEFAULT.toJson(event));
-                    // 根据department_id查询Department与docEntry
                     String resultJson = Jsons.DEFAULT.toJson(event);
                     JSONObject eventsObject = (JSONObject) JSONObject.parse(resultJson);
                     JSONObject eventObject = (JSONObject) eventsObject.get("event");
@@ -484,12 +473,12 @@ public class EventController {
                     String parent_department_id = object.getString("parent_department_id");
 
                     Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, department_id).last("limit 1"));
-                    String docEntry = "";
+                    String kingdeeDeptId = "";
                     if (department != null && department.getKingdeeDeptId() != null) {
-                        docEntry = department.getKingdeeDeptId();
+						kingdeeDeptId = department.getKingdeeDeptId();
                     } else {
-                        docEntry = "0";
-                        log.info("部门修改事件查询不到用户DocEntry: {}", department_id);
+						kingdeeDeptId = "0";
+                        log.info("部门修改事件查询不到金蝶部门ID: {}", department_id);
                     }
 
                     // 根据parent_department_id查询原来映射表的部门
@@ -499,120 +488,77 @@ public class EventController {
                         String[] split = deptIdAndName.split(",");
                         deptId = split[0];
                     }
-                    String departmentParentName = "";
+                    String deptParentNumber = "";
                     Department departmentParent = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, deptId).last("limit 1"));
                     if (department != null && department.getKingdeeDeptId() != null) {
-                        departmentParentName = departmentParent.getName();
-                        // 修改
+						deptParentNumber = departmentParent.getNumber();
                     }
                     // 修改Kingdee系统部门的名称ParentName和DeptName
-                    StringBuilder url = new StringBuilder();
-                    String timestamp = TimeUtil.getTimestamp();
-                    Map<String, String> objects = new HashMap<>();
-                    objects.put("APPID", Constants.APPID);
-                    objects.put("COMPANYID", Constants.COMPANYID);
-                    objects.put("FORMID", Constants.FORM_ID_DEPT);
-                    objects.put("TIMESTAMP", timestamp);
-                    objects.put("DOCENTRY",docEntry);
-                    String requestJson = "{\n" +
-                    "    \"U_OEPT\":[\n" +
-                            "        {\n" +
-                            "            \"DocEntry\":" + docEntry + ",\n" +
-                            "            \"RowStatus\":\"U\"\n" +
-                            "        }\n" +
-                            "    ],\n" +
-                            "    \"U_EPT1\":[\n" +
-                            "        {\n" +
-                            "            \"ParentName\":\"" + departmentParentName + "\",\n" +
-                            "            \"DeptName\":\"" + name + "\",\n" +
-                            "            \"LineNum\":1,\n" +
-                            "            \"RowStatus\":\"U\"\n" +
-                            "        },\n" +
-                            "    ]\n" +
-                            "}";
-                    String md5Token = SignUtil.makeMd5Token(objects, Constants.SECRETKEY, requestJson);
-                    url.append(Constants.DOMAIN_PORT).append(Constants.UPDATE)
-                            .append("/").append(Constants.FORM_ID_DEPT)
-                            .append("/").append(docEntry)
-                            .append("/").append(timestamp)
-                            .append("/").append(md5Token);
-                    System.out.println("url:" + url);
-                    String s = HttpRequest.post(url.toString())
-                            .body(requestJson)
-                            .execute()
-                            .body();
-                    System.out.println("r:" + s);
-
-                    // 修改部门映射表，名称，飞书父id，Kingdee父id
-                    department.setName(name);
-                    department.setFeishuParentId(deptId);
-                    department.setKingdeeParentId(departmentParent.getKingdeeDeptId());
-                    departmentMapper.updateById(department);
-
+					String deptSaveJson = "{\"Model\":{\"FDEPTID\":\"部门ID\",\"FCreateOrgId\":{\"Number\":\"1\"}," +
+							"\"FNumber\":\"\",\"FUseOrgId\":{\"Number\":\"1\"},\"FName\":\"部门名称\"," +
+							"\"FHelpCode\":\"\",\"FParentID\":{\"FNumber\":\"父部门\"}," +
+							"\"FFullName\":\"\",\"FEffectDate\":\"1900-01-01\"," +
+							"\"FLapseDate\":\"9999-01-01\",\"FDescription\":\"\"," +
+							"\"FDeptProperty\":{\"FNumber\":\"\"},\"FSHRMapEntity\":{\"FMAPID\":0}}}";
+					deptSaveJson.replaceAll("部门ID", kingdeeDeptId);
+					deptSaveJson.replaceAll("部门名称", name);
+					deptSaveJson.replaceAll("父部门", deptParentNumber);
+					String deptSaveResult = api.save("BD_Department", deptSaveJson);
+					JSONObject postObject = JSONObject.parseObject(deptSaveResult);
+					JSONObject resultObject = (JSONObject) postObject.get("Result");
+					JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+					// 金蝶修改部门成功，修改映射表金蝶parentId，部门名称
+					if (responseStatus.getBoolean("IsSuccess") &&  department != null) {
+						// 根据id查询kingdeeParentId
+						Department departmentTemp = Department.builder()
+								.id(department.getId())
+								.name(name)
+								.feishuDeptId(department_id)
+								.feishuParentId(deptId)
+								.kingdeeParentId(departmentParent.getKingdeeDeptId())
+								.build();
+						departmentMapper.updateById(departmentTemp);
+						log.info("saveDepartment success: {}", deptSaveResult);
+					} else {
+						log.info("saveDepartment fail: {}", deptSaveResult);
+					}
                 }
             }).onP2DepartmentDeletedV3(new ContactService.P2DepartmentDeletedV3Handler() {
                 // 部门删除
                 @Override
                 public void handle(P2DepartmentDeletedV3 event) throws Exception {
                     log.info("P2DepartmentDeletedV3: {}", Jsons.DEFAULT.toJson(event));
-                    // 准备docEntry和飞书department_id
                     String resultJson = Jsons.DEFAULT.toJson(event);
                     JSONObject eventsObject = (JSONObject) JSONObject.parse(resultJson);
                     JSONObject eventObject = (JSONObject) eventsObject.get("event");
                     JSONObject object = (JSONObject) eventObject.get("object");
                     String department_id = object.getString("department_id");
                     Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, department_id).last("limit 1"));
-                    String docEntry = "";
+                    String feishuDeptId = "";
                     if (department != null && department.getKingdeeDeptId() != null) {
-                        docEntry = department.getKingdeeDeptId();
+						feishuDeptId = department.getKingdeeDeptId();
                     } else {
-                        docEntry = "0";
-                        log.info("部门删除事件查询不到用户DocEntry: {}", department_id);
+						feishuDeptId = "0";
+                        log.info("部门删除事件查询不到部门KingdeeDeptId: {}", department_id);
                     }
 
-                    // Kingdee删除，根据映射表的docEntry
-                    StringBuilder url = new StringBuilder();
-                    String timestamp = TimeUtil.getTimestamp();
-                    Map<String, String> objects = new HashMap<>();
-                    objects.put("APPID", Constants.APPID);
-                    objects.put("COMPANYID", Constants.COMPANYID);
-                    objects.put("FORMID",   Constants.FORM_ID_DEPT);
-                    objects.put("TIMESTAMP", timestamp);
-                    objects.put("DOCENTRY",docEntry);
-                    String requestJsonAddArg = "{\n" +
-                    "    \"U_OEPT\":[\n" +
-                            "        {\n" +
-                            "            \"DocEntry\":" + docEntry + ",\n" +
-                            "            \"RowStatus\":\"U\"\n" +
-                            "        }\n" +
-                            "    ],\n" +
-                            "    \"U_EPT1\":[\n" +
-                            "        {\n" +
-                            "            \"ParentName\":\"综合一组\",\n" +
-                            "            \"DeptName\":\"综合销售部22\",\n" +
-                            "            \"LineNum\":1,\n" +
-                            "            \"RowStatus\":\"D\"\n" +
-                            "        },\n" +
-                            "    ]\n" +
-                            "}";
-                    String md5Token = SignUtil.makeMd5Token(objects, Constants.SECRETKEY, requestJsonAddArg);
-                    url.append(Constants.DOMAIN_PORT).append(Constants.UPDATE)
-                            .append("/").append(Constants.FORM_ID_DEPT)
-                            .append("/").append(docEntry)
-                            .append("/").append(timestamp)
-                            .append("/").append(md5Token);
-                    System.out.println("url:" + url);
-                    try {
-                        String s = HttpRequest.post(url.toString())
-                                .body(requestJsonAddArg)
-                                .execute()
-                                .body();
-                        System.out.println("r:" + s);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    // 关系映射表删除根据user_id
-                    departmentMapper.deleteById(department.getId());
+					try {
+						String deptDeleteJson = "{\"CreateOrgId\":0,\"Numbers\":[],\"ids\":\"实体主键\",\"NetworkCtrl\":\"\"}";
+						deptDeleteJson.replaceAll("实体主键", feishuDeptId);
+						String deleteDeptResult = api.delete("BD_Department", deptDeleteJson);
+						JSONObject postObject = JSONObject.parseObject(deleteDeptResult);
+						JSONObject resultObject = (JSONObject) postObject.get("Result");
+						JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+						// 金蝶删除成功，映射表删除部门
+						if (responseStatus.getBoolean("IsSuccess")) {
+							departmentMapper.deleteById(department.getId());
+							log.info("deleteDept success: {}", deleteDeptResult);
+						} else {
+							log.info("deleteDept fail: {}", deleteDeptResult);
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
                 }
             })
             .build();
