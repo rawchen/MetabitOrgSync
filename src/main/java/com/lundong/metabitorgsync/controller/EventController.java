@@ -120,41 +120,41 @@ public class EventController {
 						// 列表循环匹配名称找对应岗位number，如果匹配不到就新增岗位，取岗位number
                         List<KingdeeOrgPost> kingdeeOrgPosts = orgPostService.queryOrgPostList("FDEPTID='" + kingdeeDeptId + "'");
                         if (kingdeeOrgPosts != null && kingdeeOrgPosts.size() > 0) {
-                            for (KingdeeOrgPost orgPost : kingdeeOrgPosts) {
-                                if (job_title.equals(orgPost.getName())) {
-                                    orgPostNumber = orgPost.getNumber();
-                                    break;
-                                }
-                            }
-                            // 如果根据部门没有找到至少一个岗位信息就新增一个岗位
-                            if ("0".equals(orgPostNumber)) {
-                                String saveOrgPostData = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
-                                        "\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
-                                        "\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
-                                        "\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
-                                        "\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
-                                        "\"Model\":{\"FPOSTID\":0,\"FCreateOrgId\":{\"FNumber\":\"创建组织\"},\"FNumber\":\"\"," +
-                                        "\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FName\":\"名称\",\"FHelpCode\":\"\"," +
-                                        "\"FDept\":{\"FNumber\":\"所属部门\"},\"FEffectDate\":\"1900-01-01\"," +
-                                        "\"FLapseDate\":\"1900-01-01\",\"FDESCRIPTIONS\":\"\",\"FHRPostSubHead\":{\"FHRPOSTID\":0," +
-                                        "\"FLEADERPOST\":\"false\"},\"FSHRMapEntity\":{\"FMAPID\":0}," +
-                                        "\"FSubReportEntity\":[{\"FSubNumber\":\"\"}]}}";
-                                saveOrgPostData = saveOrgPostData.replaceAll("所属部门", kingdeeDeptNumber);
-                                saveOrgPostData = saveOrgPostData.replaceAll("名称", job_title);
-                                saveOrgPostData = saveOrgPostData.replaceAll("创建组织", Constants.ORG_NUMBER);
-                                saveOrgPostData = saveOrgPostData.replaceAll("使用组织", Constants.ORG_NUMBER);
-								System.out.println("saveOrgPostData: " + saveOrgPostData);
-                                String saveOrgPostDataResult = api.save("HR_ORG_HRPOST", saveOrgPostData);
-								System.out.println("saveOrgPostDataResult: " + saveOrgPostDataResult);
-                                JSONObject postObject = JSONObject.parseObject(saveOrgPostDataResult);
-                                JSONObject resultObject = (JSONObject) postObject.get("Result");
-                                JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
-                                if (responseStatus.getBoolean("IsSuccess")) {
-                                    // 请求成功
-                                    orgPostNumber = resultObject.getString("Number");
-                                }
-                            }
-                        }
+							for (KingdeeOrgPost orgPost : kingdeeOrgPosts) {
+								if (job_title.equals(orgPost.getName())) {
+									orgPostNumber = orgPost.getNumber();
+									break;
+								}
+							}
+						}
+						// 如果根据部门没有找到至少一个岗位信息就新增一个岗位
+						if ("0".equals(orgPostNumber)) {
+							String saveOrgPostData = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
+									"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
+									"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
+									"\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
+									"\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
+									"\"Model\":{\"FPOSTID\":0,\"FCreateOrgId\":{\"FNumber\":\"创建组织\"},\"FNumber\":\"\"," +
+									"\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FName\":\"名称\",\"FHelpCode\":\"\"," +
+									"\"FDept\":{\"FNumber\":\"所属部门\"},\"FEffectDate\":\"1900-01-01\"," +
+									"\"FLapseDate\":\"1900-01-01\",\"FDESCRIPTIONS\":\"\",\"FHRPostSubHead\":{\"FHRPOSTID\":0," +
+									"\"FLEADERPOST\":\"false\"},\"FSHRMapEntity\":{\"FMAPID\":0}," +
+									"\"FSubReportEntity\":[{\"FSubNumber\":\"\"}]}}";
+							saveOrgPostData = saveOrgPostData.replaceAll("所属部门", kingdeeDeptNumber);
+							saveOrgPostData = saveOrgPostData.replaceAll("名称", job_title);
+							saveOrgPostData = saveOrgPostData.replaceAll("创建组织", Constants.ORG_NUMBER);
+							saveOrgPostData = saveOrgPostData.replaceAll("使用组织", Constants.ORG_NUMBER);
+							System.out.println("saveOrgPostData: " + saveOrgPostData);
+							String saveOrgPostDataResult = api.save("HR_ORG_HRPOST", saveOrgPostData);
+							System.out.println("saveOrgPostDataResult: " + saveOrgPostDataResult);
+							JSONObject postObject = JSONObject.parseObject(saveOrgPostDataResult);
+							JSONObject resultObject = (JSONObject) postObject.get("Result");
+							JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+							if (responseStatus.getBoolean("IsSuccess")) {
+								// 请求成功
+								orgPostNumber = resultObject.getString("Number");
+							}
+						}
 
 						String staffSaveJson = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
 								"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
