@@ -329,4 +329,53 @@ public class SignUtil {
 				.execute();
 		return loginResponse.getCookies();
 	}
+
+	/**
+	 * 飞书人事（标准版）花名册
+	 *
+	 * @return
+	 */
+	public static List<FeishuUser> findEmployees() {
+		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
+		return findEmployees(accessToken);
+	}
+
+	/**
+	 * 飞书人事（标准版）花名册
+	 *
+	 * @param accessToken
+	 * @return
+	 */
+	public static List<FeishuUser> findEmployees(String accessToken) {
+		List<FeishuUser> users = new ArrayList<>();
+		Map<String, Object> param = new HashMap<>();
+		while (true) {
+			param.put("view", "full");
+			param.put("user_id_type", "user_id");
+			param.put("page_size", 50);
+			String resultStr = HttpRequest.get("https://open.feishu.cn/open-apis/ehr/v1/employees")
+					.header("Authorization", "Bearer " + accessToken)
+					.form(param)
+					.execute()
+					.body();
+			JSONObject jsonObject = JSON.parseObject(resultStr);
+			JSONObject data = (JSONObject) jsonObject.get("data");
+			JSONArray items = (JSONArray) data.get("items");
+			for (int i = 0; i < items.size(); i++) {
+				// 构造飞书用户对象
+				FeishuUser feishuUser = items.getJSONObject(i).getJSONObject("system_fields").toJavaObject(FeishuUser.class);
+				feishuUser.setUserId(items.getJSONObject(i).getString("user_id"));
+				if (items.getJSONObject(i).getJSONObject("system_fields").getJSONObject("job") != null) {
+					feishuUser.setJobTitle(items.getJSONObject(i).getJSONObject("system_fields").getJSONObject("job").getString("name"));
+				}
+				users.add(feishuUser);
+			}
+			if ((boolean) data.get("has_more")) {
+				param.put("page_token", data.getString("page_token"));
+			} else {
+				break;
+			}
+		}
+		return users;
+	}
 }

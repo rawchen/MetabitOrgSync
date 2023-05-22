@@ -35,7 +35,7 @@ public class OrgPostServiceImpl implements OrgPostService {
 			}
 			String resultString = api.executeBillQueryJson(formJson);
 			JSONArray resultArray = (JSONArray) JSONObject.parse(resultString);
-			if (resultArray == null) {
+			if (resultArray == null || resultArray.size() == 0) {
 				return Collections.emptyList();
 			}
 			for (int i = 0; i < resultArray.size(); i++) {

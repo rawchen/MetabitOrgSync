@@ -2,6 +2,7 @@ package com.lundong.metabitorgsync;
 
 import com.kingdee.bos.webapi.sdk.K3CloudApi;
 import com.lundong.metabitorgsync.config.Constants;
+import com.lundong.metabitorgsync.entity.FeishuUser;
 import com.lundong.metabitorgsync.entity.KingdeeUser;
 import com.lundong.metabitorgsync.service.UserService;
 import com.lundong.metabitorgsync.service.impl.UserServiceImpl;
@@ -55,6 +56,16 @@ class MetabitOrgSyncApplicationTests {
 		saveOrgPostData = saveOrgPostData.replaceAll("使用组织", "100");
 		String saveOrgPostDataResult = api.save("HR_ORG_HRPOST", saveOrgPostData);
 		System.out.println(saveOrgPostDataResult);
+	}
+
+	@Test
+	void findEmployees() {
+		String accessToken = SignUtil.getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
+
+		List<FeishuUser> employees = SignUtil.findEmployees(accessToken);
+		for (FeishuUser employee : employees) {
+			System.out.println(employee);
+		}
 	}
 
 }

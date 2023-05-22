@@ -96,7 +96,6 @@ public class EventController {
 					String kingdeeDeptNumber = "";
 
                     // 拿到飞书-Kingdee映射的部门id
-                    log.info("department_ids: {}", department_ids.getString(0));
                     String deptIdAndName = SignUtil.getDepartmentIdAndName(department_ids.getString(0));
                     String deptId = "";
                     if (deptIdAndName.contains(",")) {
@@ -104,7 +103,11 @@ public class EventController {
                         deptId = split[0];
                     }
                     Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, deptId).last("limit 1"));
-                    if (department != null && department.getKingdeeDeptId() != null) {
+					if (department == null) {
+						log.info("P2UserCreatedV3：部门映射表中根据deptId获取不到记录: {}", deptId);
+						return;
+					}
+                    if (department.getKingdeeDeptId() != null) {
 						kingdeeDeptId = department.getKingdeeDeptId();
                         kingdeeDeptNumber = department.getNumber();
                     } else {
@@ -115,7 +118,7 @@ public class EventController {
 					try {
 						// 根据所属部门作为过滤条件，调用金蝶查询就任岗位列表接口，
 						// 列表循环匹配名称找对应岗位number，如果匹配不到就新增岗位，取岗位number
-                        List<KingdeeOrgPost> kingdeeOrgPosts = orgPostService.queryOrgPostList("F='" + kingdeeDeptId + "'");
+                        List<KingdeeOrgPost> kingdeeOrgPosts = orgPostService.queryOrgPostList("FDEPTID='" + kingdeeDeptId + "'");
                         if (kingdeeOrgPosts != null && kingdeeOrgPosts.size() > 0) {
                             for (KingdeeOrgPost orgPost : kingdeeOrgPosts) {
                                 if (job_title.equals(orgPost.getName())) {
@@ -140,7 +143,9 @@ public class EventController {
                                 saveOrgPostData = saveOrgPostData.replaceAll("名称", job_title);
                                 saveOrgPostData = saveOrgPostData.replaceAll("创建组织", Constants.ORG_NUMBER);
                                 saveOrgPostData = saveOrgPostData.replaceAll("使用组织", Constants.ORG_NUMBER);
+								System.out.println("saveOrgPostData: " + saveOrgPostData);
                                 String saveOrgPostDataResult = api.save("HR_ORG_HRPOST", saveOrgPostData);
+								System.out.println("saveOrgPostDataResult: " + saveOrgPostDataResult);
                                 JSONObject postObject = JSONObject.parseObject(saveOrgPostDataResult);
                                 JSONObject resultObject = (JSONObject) postObject.get("Result");
                                 JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
@@ -170,23 +175,24 @@ public class EventController {
 								"\"FBankDetail\":{\"FNUMBER\":\"\"},\"FOpenBankName\":\"\",\"FOpenAddressRec\":\"\"," +
 								"\"FCNAPS\":\"\",\"FBankCurrencyId\":{\"FNUMBER\":\"\"},\"FBankIsDefault\":\"false\"," +
 								"\"FBankDesc\":\"\",\"FCertType\":\"\",\"FIsFromSHR\":\"false\",\"FCertNum\":\"\"}]}}";
-						staffSaveJson.replaceAll("员工姓名", name);
-						staffSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
-						staffSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
-						staffSaveJson.replaceAll("员工编号", employee_no);
-						staffSaveJson.replaceAll("所属部门", kingdeeDeptId);
-						staffSaveJson.replaceAll("就任岗位", orgPostNumber);
-						staffSaveJson.replaceAll("工作组织", Constants.ORG_NUMBER);
+						staffSaveJson = staffSaveJson.replaceAll("员工姓名", name);
+						staffSaveJson = staffSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
+						staffSaveJson = staffSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
+						staffSaveJson = staffSaveJson.replaceAll("员工编号", employee_no);
+						staffSaveJson = staffSaveJson.replaceAll("所属部门", kingdeeDeptNumber);
+						staffSaveJson = staffSaveJson.replaceAll("就任岗位", orgPostNumber);
+						staffSaveJson = staffSaveJson.replaceAll("工作组织", Constants.ORG_NUMBER);
                         // 非必填
-                        staffSaveJson.replaceAll("移动电话", StringUtil.mobileDivAreaCode(mobile));
-                        staffSaveJson.replaceAll("任岗开始日期", TimeUtil.timestampToYMD(join_time));
+                        staffSaveJson = staffSaveJson.replaceAll("移动电话", StringUtil.mobileDivAreaCode(mobile));
+                        staffSaveJson = staffSaveJson.replaceAll("任岗开始日期", TimeUtil.timestampToYMD(join_time));
                         String saveEmpinfoResult = api.save("BD_Empinfo", staffSaveJson);
+						System.out.println("staffSaveJson: " + staffSaveJson);
                         JSONObject postObject = JSONObject.parseObject(saveEmpinfoResult);
                         JSONObject resultObject = (JSONObject) postObject.get("Result");
                         JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
                         if (responseStatus.getBoolean("IsSuccess")) {
 							User user = User.builder()
-									.fid(resultObject.getString(""))
+									.fid(resultObject.getString("Id"))
 									.name(name)
 									.userId(user_id)
 									.deptId(deptId)
@@ -223,7 +229,6 @@ public class EventController {
 					String kingdeeDeptNumber = "";
 
 					// 拿到飞书-Kingdee映射的部门id
-					log.info("department_ids: {}", department_ids.getString(0));
 					String deptIdAndName = SignUtil.getDepartmentIdAndName(department_ids.getString(0));
 					String deptId = "";
 					if (deptIdAndName.contains(",")) {
@@ -231,7 +236,11 @@ public class EventController {
 						deptId = split[0];
 					}
 					Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, deptId).last("limit 1"));
-					if (department != null && department.getKingdeeDeptId() != null) {
+					if (department == null) {
+						log.info("P2UserUpdatedV3事件：部门映射表中根据deptId获取不到记录: {}", deptId);
+						return;
+					}
+					if (department.getKingdeeDeptId() != null) {
 						kingdeeDeptId = department.getKingdeeDeptId();
 						kingdeeDeptNumber = department.getNumber();
 					} else {
@@ -242,21 +251,22 @@ public class EventController {
 
 					// 根据飞书user_id查询kingdee单据id（映射好的用户数据库查）
 					User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getUserId, user_id).last("limit 1"));
-					String staffId = "";
+					if (user == null) {
+						log.info("P2UserUpdatedV3事件：用户映射表中根据user_id获取不到记录: {}", user_id);
+						return;
+					}
 					String fid = "";
-					if (user != null && user.getStaffId() != null && user.getFid() != null) {
-						staffId = user.getStaffId();
+					if (user.getFid() != null) {
 						fid = user.getFid();
 					} else {
-						staffId = "0";
 						fid = "0";
-						log.info("用户修改事件查询不到用户staffId: {}", user_id);
+						log.info("用户修改事件查询不到用户user_id: {}", user_id);
 					}
 
 					try {
 						// 根据所属部门作为过滤条件，调用金蝶查询就任岗位列表接口，
 						// 列表循环匹配名称找对应岗位number，如果匹配不到就新增岗位，取岗位number
-						List<KingdeeOrgPost> kingdeeOrgPosts = orgPostService.queryOrgPostList("F='" + kingdeeDeptId + "'");
+						List<KingdeeOrgPost> kingdeeOrgPosts = orgPostService.queryOrgPostList("FDEPTID='" + kingdeeDeptId + "'");
 						if (kingdeeOrgPosts != null && kingdeeOrgPosts.size() > 0) {
 							for (KingdeeOrgPost orgPost : kingdeeOrgPosts) {
 								if (job_title.equals(orgPost.getName())) {
@@ -264,33 +274,36 @@ public class EventController {
 									break;
 								}
 							}
-							// 如果根据部门没有找到至少一个岗位信息就新增一个岗位
-							if ("0".equals(orgPostNumber)) {
-								String saveOrgPostData = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
-										"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
-										"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
-										"\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
-										"\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
-										"\"Model\":{\"FPOSTID\":0,\"FCreateOrgId\":{\"FNumber\":\"创建组织\"},\"FNumber\":\"\"," +
-										"\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FName\":\"名称\",\"FHelpCode\":\"\"," +
-										"\"FDept\":{\"FNumber\":\"所属部门\"},\"FEffectDate\":\"1900-01-01\"," +
-										"\"FLapseDate\":\"1900-01-01\",\"FDESCRIPTIONS\":\"\",\"FHRPostSubHead\":{\"FHRPOSTID\":0," +
-										"\"FLEADERPOST\":\"false\"},\"FSHRMapEntity\":{\"FMAPID\":0}," +
-										"\"FSubReportEntity\":[{\"FSubNumber\":\"\"}]}}";
-								saveOrgPostData = saveOrgPostData.replaceAll("所属部门", kingdeeDeptNumber);
-								saveOrgPostData = saveOrgPostData.replaceAll("名称", job_title);
-								saveOrgPostData = saveOrgPostData.replaceAll("创建组织", Constants.ORG_NUMBER);
-								saveOrgPostData = saveOrgPostData.replaceAll("使用组织", Constants.ORG_NUMBER);
-								String saveOrgPostDataResult = api.save("HR_ORG_HRPOST", saveOrgPostData);
-								JSONObject postObject = JSONObject.parseObject(saveOrgPostDataResult);
-								JSONObject resultObject = (JSONObject) postObject.get("Result");
-								JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
-								if (responseStatus.getBoolean("IsSuccess")) {
-									// 请求成功
-									orgPostNumber = resultObject.getString("Number");
-								}
+						}
+						// 如果根据部门没有找到至少一个岗位信息就新增一个岗位
+						if ("0".equals(orgPostNumber)) {
+							String saveOrgPostData = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
+									"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
+									"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
+									"\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
+									"\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
+									"\"Model\":{\"FPOSTID\":0,\"FCreateOrgId\":{\"FNumber\":\"创建组织\"},\"FNumber\":\"\"," +
+									"\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FName\":\"名称\",\"FHelpCode\":\"\"," +
+									"\"FDept\":{\"FNumber\":\"所属部门\"},\"FEffectDate\":\"1900-01-01\"," +
+									"\"FLapseDate\":\"1900-01-01\",\"FDESCRIPTIONS\":\"\",\"FHRPostSubHead\":{\"FHRPOSTID\":0," +
+									"\"FLEADERPOST\":\"false\"},\"FSHRMapEntity\":{\"FMAPID\":0}," +
+									"\"FSubReportEntity\":[{\"FSubNumber\":\"\"}]}}";
+							saveOrgPostData = saveOrgPostData.replaceAll("所属部门", kingdeeDeptNumber);
+							saveOrgPostData = saveOrgPostData.replaceAll("名称", job_title);
+							saveOrgPostData = saveOrgPostData.replaceAll("创建组织", Constants.ORG_NUMBER);
+							saveOrgPostData = saveOrgPostData.replaceAll("使用组织", Constants.ORG_NUMBER);
+							System.out.println("saveOrgPostData: " + saveOrgPostData);
+							String saveOrgPostDataResult = api.save("HR_ORG_HRPOST", saveOrgPostData);
+							System.out.println("saveOrgPostDataResult: " + saveOrgPostDataResult);
+							JSONObject postObject = JSONObject.parseObject(saveOrgPostDataResult);
+							JSONObject resultObject = (JSONObject) postObject.get("Result");
+							JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+							if (responseStatus.getBoolean("IsSuccess")) {
+								// 请求成功
+								orgPostNumber = resultObject.getString("Number");
 							}
 						}
+
 
 						String staffSaveJson = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
 								"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
@@ -311,17 +324,17 @@ public class EventController {
 								"\"FBankDetail\":{\"FNUMBER\":\"\"},\"FOpenBankName\":\"\",\"FOpenAddressRec\":\"\"," +
 								"\"FCNAPS\":\"\",\"FBankCurrencyId\":{\"FNUMBER\":\"\"},\"FBankIsDefault\":\"false\"," +
 								"\"FBankDesc\":\"\",\"FCertType\":\"\",\"FIsFromSHR\":\"false\",\"FCertNum\":\"\"}]}}";
-						staffSaveJson.replaceAll("实体主键", fid);
-						staffSaveJson.replaceAll("员工姓名", name);
-						staffSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
-						staffSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
-						staffSaveJson.replaceAll("员工编号", employee_no);
-						staffSaveJson.replaceAll("所属部门", kingdeeDeptId);
-						staffSaveJson.replaceAll("就任岗位", orgPostNumber);
-						staffSaveJson.replaceAll("工作组织", Constants.ORG_NUMBER);
+						staffSaveJson = staffSaveJson.replaceAll("实体主键", fid);
+						staffSaveJson = staffSaveJson.replaceAll("员工姓名", name);
+						staffSaveJson = staffSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
+						staffSaveJson = staffSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
+						staffSaveJson = staffSaveJson.replaceAll("员工编号", employee_no);
+						staffSaveJson = staffSaveJson.replaceAll("所属部门", kingdeeDeptNumber);
+						staffSaveJson = staffSaveJson.replaceAll("就任岗位", orgPostNumber);
+						staffSaveJson = staffSaveJson.replaceAll("工作组织", Constants.ORG_NUMBER);
 						// 非必填
-						staffSaveJson.replaceAll("移动电话", StringUtil.mobileDivAreaCode(mobile));
-						staffSaveJson.replaceAll("任岗开始日期", TimeUtil.timestampToYMD(join_time));
+						staffSaveJson = staffSaveJson.replaceAll("移动电话", StringUtil.mobileDivAreaCode(mobile));
+						staffSaveJson = staffSaveJson.replaceAll("任岗开始日期", TimeUtil.timestampToYMD(join_time));
 						String saveEmpinfoResult = api.save("BD_Empinfo", staffSaveJson);
 						JSONObject postObject = JSONObject.parseObject(saveEmpinfoResult);
 						JSONObject resultObject = (JSONObject) postObject.get("Result");
@@ -329,8 +342,8 @@ public class EventController {
 						// 金蝶修改成功，映射表更新用户
 						if (responseStatus.getBoolean("IsSuccess")) {
 							User userTemp = User.builder()
+									.id(user.getId())
 									.fid(fid)
-									.staffId(staffId)
 									.name(name)
 									.deptId(deptId)
 									.build();
@@ -364,7 +377,7 @@ public class EventController {
 
                     try {
 						String staffDeleteJson = "{\"CreateOrgId\":0,\"Numbers\":[],\"ids\":\"实体主键\",\"NetworkCtrl\":\"\"}";
-						staffDeleteJson.replaceAll("实体主键", fid);
+						staffDeleteJson = staffDeleteJson.replaceAll("实体主键", fid);
 						String deleteEmpinfoResult = api.delete("BD_Empinfo", staffDeleteJson);
 						JSONObject postObject = JSONObject.parseObject(deleteEmpinfoResult);
 						JSONObject resultObject = (JSONObject) postObject.get("Result");
@@ -392,14 +405,14 @@ public class EventController {
                     JSONObject object = (JSONObject) eventObject.get("object");
                     String name = object.getString("name");
                     String department_id = object.getString("department_id");
-                    String parent_department_id = object.getString("parent_department_id"); // od-b66de0fbb2edb71b7f5b020d675a3e04
+                    String parent_department_id = object.getString("parent_department_id");
 
                     // 调用自建应用根据父部门id：od-xxx获取部门名和导出的id样例
                     String deptIdAndName = SignUtil.getDepartmentIdAndName(parent_department_id);
                     String deptParentId = "";
                     String deptParentNumber = "";
                     if (deptIdAndName.startsWith("0,")) {
-                        deptParentId = "";
+                        deptParentId = "0";
                     } else if (deptIdAndName.contains(",")
                             && deptIdAndName.split(",")[0] != null
                             && deptIdAndName.split(",")[1] != null) {
@@ -420,8 +433,8 @@ public class EventController {
 								"\"FFullName\":\"\",\"FEffectDate\":\"1900-01-01\"," +
 								"\"FLapseDate\":\"9999-01-01\",\"FDescription\":\"\"," +
 								"\"FDeptProperty\":{\"FNumber\":\"\"},\"FSHRMapEntity\":{\"FMAPID\":0}}}";
-						deptSaveJson.replaceAll("部门名称", name);
-						deptSaveJson.replaceAll("父部门", deptParentNumber);
+						deptSaveJson = deptSaveJson.replaceAll("部门名称", name);
+						deptSaveJson = deptSaveJson.replaceAll("父部门", deptParentNumber);
 						String deptSaveResult = api.save("BD_Department", deptSaveJson);
 						JSONObject postObject = JSONObject.parseObject(deptSaveResult);
 						JSONObject resultObject = (JSONObject) postObject.get("Result");
@@ -484,7 +497,9 @@ public class EventController {
                     // 根据parent_department_id查询原来映射表的部门
                     String deptIdAndName = SignUtil.getDepartmentIdAndName(parent_department_id);
                     String deptId = "";
-                    if (deptIdAndName.contains(",")) {
+					if (deptIdAndName.startsWith("0,")) {
+						deptId = "0";
+					} else if (deptIdAndName.contains(",")) {
                         String[] split = deptIdAndName.split(",");
                         deptId = split[0];
                     }
@@ -500,9 +515,9 @@ public class EventController {
 							"\"FFullName\":\"\",\"FEffectDate\":\"1900-01-01\"," +
 							"\"FLapseDate\":\"9999-01-01\",\"FDescription\":\"\"," +
 							"\"FDeptProperty\":{\"FNumber\":\"\"},\"FSHRMapEntity\":{\"FMAPID\":0}}}";
-					deptSaveJson.replaceAll("部门ID", kingdeeDeptId);
-					deptSaveJson.replaceAll("部门名称", name);
-					deptSaveJson.replaceAll("父部门", deptParentNumber);
+					deptSaveJson = deptSaveJson.replaceAll("部门ID", kingdeeDeptId);
+					deptSaveJson = deptSaveJson.replaceAll("部门名称", name);
+					deptSaveJson = deptSaveJson.replaceAll("父部门", deptParentNumber);
 					String deptSaveResult = api.save("BD_Department", deptSaveJson);
 					JSONObject postObject = JSONObject.parseObject(deptSaveResult);
 					JSONObject resultObject = (JSONObject) postObject.get("Result");
@@ -544,7 +559,7 @@ public class EventController {
 
 					try {
 						String deptDeleteJson = "{\"CreateOrgId\":0,\"Numbers\":[],\"ids\":\"实体主键\",\"NetworkCtrl\":\"\"}";
-						deptDeleteJson.replaceAll("实体主键", feishuDeptId);
+						deptDeleteJson = deptDeleteJson.replaceAll("实体主键", feishuDeptId);
 						String deleteDeptResult = api.delete("BD_Department", deptDeleteJson);
 						JSONObject postObject = JSONObject.parseObject(deleteDeptResult);
 						JSONObject resultObject = (JSONObject) postObject.get("Result");

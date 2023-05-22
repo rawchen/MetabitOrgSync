@@ -2,6 +2,7 @@ package com.lundong.metabitorgsync.service.impl;
 
 import cn.hutool.core.collection.CollectionUtil;
 import cn.hutool.core.util.StrUtil;
+import com.lundong.metabitorgsync.config.Constants;
 import com.lundong.metabitorgsync.entity.*;
 import com.lundong.metabitorgsync.mapper.DepartmentMapper;
 import com.lundong.metabitorgsync.mapper.UserMapper;
@@ -111,7 +112,8 @@ public class SystemServiceImpl implements SystemService {
 		List<Department> departments = departmentMapper.selectAll();
 
 		// 飞书用户列表查询（接口查）
-		List<FeishuUser> feishuUsers = SignUtil.findByDepartment();
+//		List<FeishuUser> feishuUsers = SignUtil.findByDepartment();
+		List<FeishuUser> feishuUsers = SignUtil.findEmployees();
 
 		// 替换部门ID和部门名称
 		for (FeishuUser feishuUser : feishuUsers) {
@@ -119,7 +121,10 @@ public class SystemServiceImpl implements SystemService {
 			System.out.println(deptIdAndName);
 			String deptId = "";
 			String deptName = "";
-			if (deptIdAndName.contains(",")
+			if (deptIdAndName.startsWith("0,")) {
+				deptId = "0";
+				deptName = Constants.ORG_NAME;
+			} else if (deptIdAndName.contains(",")
 					&& deptIdAndName.split(",")[0] != null
 					&& deptIdAndName.split(",")[1] != null) {
 				String[] split = deptIdAndName.split(",");
@@ -138,9 +143,8 @@ public class SystemServiceImpl implements SystemService {
 					.name(feishuUser.getName())
 					.userId(feishuUser.getUserId())
 					.build();
-//            user.setKingdeeId(excelUser.getId());
-//            user.setId(excelUser.getId());
 			for (Department department : departments) {
+				user.setDeptId("0");
 				if (department.getName().equals(feishuUser.getDeptName())) {
 					user.setDeptId(department.getFeishuDeptId());
 					break;
