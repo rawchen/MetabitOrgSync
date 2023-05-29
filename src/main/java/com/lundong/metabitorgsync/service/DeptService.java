@@ -16,4 +16,10 @@ public interface DeptService {
 	 * @return
 	 */
 	List<KingdeeDept> queryDepartmentList();
+
+	/**
+	 * 修改Kingdee部门code
+	 * @return
+	 */
+	boolean updateDepartment(String kingdeeDeptId, String code);
 }

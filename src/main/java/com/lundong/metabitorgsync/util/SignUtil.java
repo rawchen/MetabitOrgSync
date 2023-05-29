@@ -8,44 +8,20 @@ import com.alibaba.fastjson.JSONObject;
 import com.lundong.metabitorgsync.config.Constants;
 import com.lundong.metabitorgsync.entity.FeishuDept;
 import com.lundong.metabitorgsync.entity.FeishuUser;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.net.HttpCookie;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author RawChen
  * @date 2023-03-08 18:37
  */
 public class SignUtil {
-
-	/**
-	 * Kingdee系统自定义签名规则
-	 * @param objects
-	 * @param secretKey
-	 * @param requestJson
-	 * @return
-	 */
-	public static String makeMd5Token(Map<String, String> objects, String secretKey, String requestJson) {
-		StringBuilder content = new StringBuilder();
-		content.append(secretKey);
-		// 对 resultmap 中的参数进行排序
-		List<String> keyList = new ArrayList<>();
-		Iterator<Map.Entry<String, String>> ite = objects.entrySet().iterator();
-		while (ite.hasNext()) {
-			keyList.add(ite.next().getKey());
-		}
-		Collections.sort(keyList);
-		// 拼接 secretKey
-		for (String key : keyList) {
-			content.append(key).append(objects.get(key));
-		}
-		content.append(requestJson).append(secretKey);
-		// 生成 md5 签名
-		return DigestUtils.md5Hex(content.toString());
-	}
 
 	/**
 	 * 飞书自建应用获取tenant_access_token
@@ -56,6 +32,7 @@ public class SignUtil {
 		object.put("app_secret", appSecret);
 		String resultStr = HttpRequest.post("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal")
 				.form(object)
+				.timeout(2000)
 				.execute().body();
 		if (StringUtils.isNotEmpty(resultStr)) {
 			JSONObject resultObject = (JSONObject) JSON.parse(resultStr);
@@ -326,6 +303,7 @@ public class SignUtil {
 				"}";
 		HttpResponse loginResponse = HttpRequest.post(loginUrl.toString())
 				.body(loginJson)
+				.timeout(2000)
 				.execute();
 		return loginResponse.getCookies();
 	}
@@ -352,7 +330,7 @@ public class SignUtil {
 		while (true) {
 			param.put("view", "full");
 			param.put("user_id_type", "user_id");
-			param.put("page_size", 50);
+			param.put("page_size", 100);
 			String resultStr = HttpRequest.get("https://open.feishu.cn/open-apis/ehr/v1/employees")
 					.header("Authorization", "Bearer " + accessToken)
 					.form(param)
@@ -378,4 +356,44 @@ public class SignUtil {
 		}
 		return users;
 	}
+
+	/**
+	 * 飞书人事（企业版）查询单个部门编码
+	 *
+	 * @param accessToken
+	 * @return
+	 */
+	public static String corehrDepartment(String accessToken, String departmentId) {
+		String resultStr = HttpRequest.get(
+						"https://open.feishu.cn/open-apis/corehr/v1/departments/"
+								+ departmentId
+								+ "?department_id_type=department_id&user_id_type=user_id")
+				.timeout(2000)
+				.header("Authorization", "Bearer " + accessToken)
+				.execute()
+				.body();
+		if (StringUtils.isNotEmpty(resultStr)) {
+			JSONObject resultObject = (JSONObject) JSON.parse(resultStr);
+			if (!"0".equals(resultObject.getString("code"))) {
+				return "";
+			} else {
+				JSONObject data = resultObject.getJSONObject("data");
+				JSONObject department = data.getJSONObject("department");
+				JSONObject hiberarchyCommon = department.getJSONObject("hiberarchy_common");
+				String code = hiberarchyCommon.getString("code");
+				return code;
+			}
+		}
+		return "";
+	}
+	/**
+	 * 飞书人事（企业版）查询单个部门编码
+	 *
+	 * @return
+	 */
+	public static String corehrDepartment(String departmentId) {
+		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
+		return corehrDepartment(accessToken, departmentId);
+	}
+
 }

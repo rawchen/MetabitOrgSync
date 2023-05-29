@@ -7,16 +7,16 @@ package com.lundong.metabitorgsync.config;
 public class Constants {
 
 	// 飞书自建应用 App ID
-	public final static String APP_ID_FEISHU = "cli_a48aeeb160f8d00d";
+	public final static String APP_ID_FEISHU = "cli_a4exxxxxxxxxxxxx";
 
 	// 飞书自建应用 App Secret
-	public final static String APP_SECRET_FEISHU = "o217Zu1yiRZhPduUnCkyPehVNPpAM1OE";
-
-	// 飞书自建应用订阅事件 Verification Token
-	public final static String VERIFICATION_TOKEN = "3d0xAnMEPdET3h4UVL8GvcwybNO2cHwk";
+	public final static String APP_SECRET_FEISHU = "text0BBfJRSr6u8IRQv9Bxxxxxxxxxxx";
 
 	// 飞书自建应用订阅事件 Encrypt Key
-	public final static String ENCRYPT_KEY = "wf57O8PbcrpKXR2dfLUXFg4o5MZy8p2u";
+	public final static String ENCRYPT_KEY = "nZYEqeSPgTo6TxBOAAxxxxxxxxxxxxxx";
+
+	// 飞书自建应用订阅事件 Verification Token
+	public final static String VERIFICATION_TOKEN = "oiVKj9aDXnTanFXGIWnQxxxxxxxxxxxx";
 
 	// 金蝶云星空网址
 	public final static String DOMAIN_PORT = "http://192.168.121.129/k3cloud";
@@ -34,25 +34,12 @@ public class Constants {
 	public final static String KINGDEE_QUERY = "/Kingdee.BOS.WebApi.ServicesStub.DynamicFormService.ExecuteBillQuery.common.kdsvc";
 
 	// 固定工作组织NUMBER，北京乾象私募基金管理有限公司
-	public final static String ORG_NUMBER_WORK = "100";		// 测试100 正式QXBJ
+	public final static String ORG_NUMBER_WORK = "QXBJ";		// 测试100 正式QXBJ
 
 	// 固定创建组织/使用组织NUMBER，北京乾象私募基金管理有限公司
-	public final static String ORG_NUMBER = "100";				// 测试100 正式001
+	public final static String ORG_NUMBER = "QXBJ";				// 测试100 正式QXBJ
 
 	// 固定根部门名称
 	public final static String ORG_NAME = "北京乾象私募基金管理有限公司";
-
-	public final static String APPID = "";
-	public final static String COMPANYID = "";
-	public final static String FORM_ID_DEPT = "";
-	public final static String SECRETKEY = "";
-	public final static String UPDATE = "";
-	public final static String ADD = "";
-	public final static String FORM_ID_USER = "";
-	public final static String QUERY_ID_USER = "";
-	public final static String QUERY = "";
-	public final static String QUERY_ID_DEPT = "";
-	public final static String APP_SECRET_MONGO = "";
-	public final static String APP_ID_MONGO = "";
 
 }

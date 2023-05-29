@@ -2,9 +2,13 @@ package com.lundong.metabitorgsync;
 
 import com.kingdee.bos.webapi.sdk.K3CloudApi;
 import com.lundong.metabitorgsync.config.Constants;
+import com.lundong.metabitorgsync.entity.FeishuDept;
 import com.lundong.metabitorgsync.entity.FeishuUser;
+import com.lundong.metabitorgsync.entity.KingdeeDept;
 import com.lundong.metabitorgsync.entity.KingdeeUser;
+import com.lundong.metabitorgsync.service.DeptService;
 import com.lundong.metabitorgsync.service.UserService;
+import com.lundong.metabitorgsync.service.impl.DeptServiceImpl;
 import com.lundong.metabitorgsync.service.impl.UserServiceImpl;
 import com.lundong.metabitorgsync.util.SignUtil;
 import com.lundong.metabitorgsync.util.TimeUtil;
@@ -65,6 +69,45 @@ class MetabitOrgSyncApplicationTests {
 		List<FeishuUser> employees = SignUtil.findEmployees(accessToken);
 		for (FeishuUser employee : employees) {
 			System.out.println(employee);
+		}
+	}
+
+	@Test
+	void getAccessToken() {
+		String accessToken = SignUtil.getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
+		System.out.println(accessToken);
+	}
+
+	@Test
+	void updateDepartment() throws Exception {
+		K3CloudApi api = new K3CloudApi();
+		String deptSaveJson = "{\"Model\":{\"FDEPTID\":\"部门ID\",\"FCreateOrgId\":{\"Number\":\"创建组织\"}," +
+				"\"FNumber\":\"编号\",\"FUseOrgId\":{\"Number\":\"使用组织\"}," +
+				"\"FHelpCode\":\"\"," +
+				"\"FDescription\":\"\"," +
+				"\"FDeptProperty\":{\"FNumber\":\"\"},\"FSHRMapEntity\":{\"FMAPID\":0}}}";
+		deptSaveJson = deptSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
+		deptSaveJson = deptSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
+		deptSaveJson = deptSaveJson.replaceAll("编号", "BM000036");
+		deptSaveJson = deptSaveJson.replaceAll("部门ID", "213105");
+		String deptSaveResult = api.save("BD_Department", deptSaveJson);
+		System.out.println(deptSaveResult);
+	}
+
+	@Test
+	void testQueryDepartmentList() {
+		DeptService deptService = new DeptServiceImpl();
+		List<KingdeeDept> kingdeeDepts = deptService.queryDepartmentList();
+		for (KingdeeDept kingdeeDept : kingdeeDepts) {
+			System.out.println(kingdeeDept);
+		}
+	}
+
+	@Test
+	void testgetFeishuDepartmentList() {
+		List<FeishuDept> depts = SignUtil.departments();
+		for (FeishuDept dept : depts) {
+			System.out.println(dept);
 		}
 	}
 

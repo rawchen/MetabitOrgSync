@@ -10,12 +10,14 @@ import com.lundong.metabitorgsync.service.DeptService;
 import com.lundong.metabitorgsync.service.SystemService;
 import com.lundong.metabitorgsync.service.UserService;
 import com.lundong.metabitorgsync.util.SignUtil;
+import com.lundong.metabitorgsync.util.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -23,7 +25,6 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class SystemServiceImpl implements SystemService {
-	private static final String DEPT_FILE_NAME = "部门信息.xlsx";
 
 	@Autowired
 	private DepartmentMapper departmentMapper;
@@ -92,6 +93,18 @@ public class SystemServiceImpl implements SystemService {
 				departmentMapper.insertBatch(departments);
 			}
 		}
+
+		// 初始化部门的编码，金蝶助记码，根据部门ID
+		List<Department> departments = departmentMapper.selectAll();
+		for (Department department : departments) {
+			if (!StringUtil.isEmpty(department.getFeishuDeptId()) && !"0".equals(department.getFeishuDeptId())) {
+				String code = SignUtil.corehrDepartment(department.getFeishuDeptId());
+				if (!StringUtil.isEmpty(code)) {
+					// 将这个code传给金蝶，调用金蝶修改部门接口
+					deptService.updateDepartment(department.getKingdeeDeptId(), code);
+				}
+			}
+		}
 		return "success";
 	}
 
@@ -110,34 +123,51 @@ public class SystemServiceImpl implements SystemService {
 		}
 
 		List<Department> departments = departmentMapper.selectAll();
+		List<KingdeeUser> kingdeeUsers = userService.queryUserList();
 
 		// 飞书用户列表查询（接口查）
 //		List<FeishuUser> feishuUsers = SignUtil.findByDepartment();
 		List<FeishuUser> feishuUsers = SignUtil.findEmployees();
 
+		Map<String, String[]> departmentMap = new HashMap<>();
+
 		// 替换部门ID和部门名称
 		for (FeishuUser feishuUser : feishuUsers) {
-			String deptIdAndName = SignUtil.getDepartmentIdAndName(feishuUser.getDepartmentId());
-			System.out.println(deptIdAndName);
+			String department_open_id = feishuUser.getDepartmentId();
 			String deptId = "";
 			String deptName = "";
-			if (deptIdAndName.startsWith("0,")) {
-				deptId = "0";
-				deptName = Constants.ORG_NAME;
-			} else if (deptIdAndName.contains(",")
-					&& deptIdAndName.split(",")[0] != null
-					&& deptIdAndName.split(",")[1] != null) {
-				String[] split = deptIdAndName.split(",");
-				deptId = split[0];
-				deptName = split[1];
+			// 如果map已经存在了就从map取
+			if (departmentMap.containsKey(department_open_id)) {
+				deptId = departmentMap.get(feishuUser.getDepartmentId())[0];
+				deptName = departmentMap.get(feishuUser.getDepartmentId())[1];
+				feishuUser.setDepartmentId(deptId);
+				feishuUser.setDeptName(deptName);
+			} else {
+				String deptIdAndName = SignUtil.getDepartmentIdAndName(department_open_id);
+				System.out.println(deptIdAndName);
+
+				if (deptIdAndName.startsWith("0,")) {
+					deptId = "0";
+					deptName = Constants.ORG_NAME;
+				} else if (deptIdAndName.contains(",")
+						&& deptIdAndName.split(",")[0] != null
+						&& deptIdAndName.split(",")[1] != null) {
+					String[] split = deptIdAndName.split(",");
+					deptId = split[0];
+					deptName = split[1];
+				}
+				feishuUser.setDepartmentId(deptId);
+				feishuUser.setDeptName(deptName);
+				String[] temp = new String[2];
+				temp[0] = deptId;
+				temp[1] = deptName;
+				departmentMap.put(department_open_id, temp);
 			}
-			feishuUser.setDepartmentId(deptId);
-			feishuUser.setDeptName(deptName);
 		}
+		System.out.println("size: " + departmentMap.size());
 
 		// 部门匹配
 		List<User> users = new ArrayList<>();
-
 		for (FeishuUser feishuUser : feishuUsers) {
 			User user = User.builder()
 					.name(feishuUser.getName())
@@ -152,7 +182,6 @@ public class SystemServiceImpl implements SystemService {
 			}
 
 			// Kingdee系统对应的人匹配
-			List<KingdeeUser> kingdeeUsers = userService.queryUserList();
 			for (KingdeeUser kingdeeUser : kingdeeUsers) {
 				if (feishuUser.getName().equals(kingdeeUser.getName())) {
 					user.setStaffId(kingdeeUser.getStaffId());
@@ -160,7 +189,6 @@ public class SystemServiceImpl implements SystemService {
 					break;
 				}
 			}
-
 			users.add(user);
 		}
 		// 添加到用户映射表

@@ -169,7 +169,7 @@ public class EventController {
 								"\"FPostId\":{\"FNUMBER\":\"\"},\"FJoinDate\":\"1900-01-01\",\"FUniportalNo\":\"\"," +
 								"\"FSHRMapEntity\":{\"FMAPID\":0},\"FPostEntity\":[{\"FENTRYID\":0,\"FWorkOrgId\":{\"FNumber\":\"工作组织\"}," +
 								"\"FPostDept\":{\"FNumber\":\"所属部门\"},\"FPost\":{\"FNumber\":\"就任岗位\"},\"FStaffStartDate\":\"任岗开始日期\"" +
-								",\"FIsFirstPost\":\"false\",\"FStaffDetails\":0,\"FOperatorType\":\"\"}]," +
+								",\"FIsFirstPost\":\"true\",\"FStaffDetails\":0,\"FOperatorType\":\"\"}]," +
 								"\"FBankInfo\":[{\"FBankId\":0,\"FBankCountry\":{\"FNumber\":\"\"},\"FBankCode\":\"\"," +
 								"\"FBankHolder\":\"\",\"FBankTypeRec\":{\"FNUMBER\":\"\"},\"FTextBankDetail\":\"\"," +
 								"\"FBankDetail\":{\"FNUMBER\":\"\"},\"FOpenBankName\":\"\",\"FOpenAddressRec\":\"\"," +
@@ -262,7 +262,6 @@ public class EventController {
 						fid = "0";
 						log.info("用户修改事件查询不到用户user_id: {}", user_id);
 					}
-
 					try {
 						// 根据所属部门作为过滤条件，调用金蝶查询就任岗位列表接口，
 						// 列表循环匹配名称找对应岗位number，如果匹配不到就新增岗位，取岗位number
@@ -304,7 +303,6 @@ public class EventController {
 							}
 						}
 
-
 						String staffSaveJson = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
 								"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
 								"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
@@ -318,7 +316,7 @@ public class EventController {
 								"\"FPostId\":{\"FNUMBER\":\"\"},\"FJoinDate\":\"1900-01-01\",\"FUniportalNo\":\"\"," +
 								"\"FSHRMapEntity\":{\"FMAPID\":0},\"FPostEntity\":[{\"FENTRYID\":0,\"FWorkOrgId\":{\"FNumber\":\"工作组织\"}," +
 								"\"FPostDept\":{\"FNumber\":\"所属部门\"},\"FPost\":{\"FNumber\":\"就任岗位\"},\"FStaffStartDate\":\"任岗开始日期\"" +
-								",\"FIsFirstPost\":\"false\",\"FStaffDetails\":0,\"FOperatorType\":\"\"}]," +
+								",\"FIsFirstPost\":\"true\",\"FStaffDetails\":0,\"FOperatorType\":\"\"}]," +
 								"\"FBankInfo\":[{\"FBankId\":0,\"FBankCountry\":{\"FNumber\":\"\"},\"FBankCode\":\"\"," +
 								"\"FBankHolder\":\"\",\"FBankTypeRec\":{\"FNUMBER\":\"\"},\"FTextBankDetail\":\"\"," +
 								"\"FBankDetail\":{\"FNUMBER\":\"\"},\"FOpenBankName\":\"\",\"FOpenAddressRec\":\"\"," +
@@ -367,27 +365,35 @@ public class EventController {
                     JSONObject object = (JSONObject) eventObject.get("object");
                     String user_id = object.getString("user_id");
                     User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getUserId, user_id).last("limit 1"));
-                    String fid = "";
-                    if (user != null && user.getFid() != null) {
-						fid = user.getFid();
-                    } else {
-						fid = "0";
-                        log.info("用户删除事件查询不到用户Fid: {}", user_id);
-                    }
-
+					if (user == null) {
+						log.info("P2UserDeletedV3事件：用户映射表中根据user_id获取不到记录: {}", user_id);
+						return;
+					}
                     try {
-						String staffDeleteJson = "{\"CreateOrgId\":0,\"Numbers\":[],\"ids\":\"实体主键\",\"NetworkCtrl\":\"\"}";
-						staffDeleteJson = staffDeleteJson.replaceAll("实体主键", fid);
-						String deleteEmpinfoResult = api.delete("BD_Empinfo", staffDeleteJson);
-						JSONObject postObject = JSONObject.parseObject(deleteEmpinfoResult);
-						JSONObject resultObject = (JSONObject) postObject.get("Result");
-						JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
-						// 金蝶删除成功，映射表删除用户
-						if (responseStatus.getBoolean("IsSuccess")) {
+//						String staffDeleteJson = "{\"CreateOrgId\":0,\"Numbers\":[],\"ids\":\"实体主键\",\"NetworkCtrl\":\"\"}";
+//						staffDeleteJson = staffDeleteJson.replaceAll("实体主键", fid);
+//						String deleteEmpinfoResult = api.delete("BD_Empinfo", staffDeleteJson);
+//						JSONObject postObject = JSONObject.parseObject(deleteEmpinfoResult);
+//						JSONObject resultObject = (JSONObject) postObject.get("Result");
+//						JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+
+						// 改为如果是审核了就反审核，并且禁用
+						String unAuditEmpinfoResult = api.unAudit("BD_Empinfo", "{\"Ids\":\"" + user.getFid() + "\"}");
+						JSONObject unAuditEmpinfoObject = JSONObject.parseObject(unAuditEmpinfoResult);
+						JSONObject unAuditResultObject = (JSONObject) unAuditEmpinfoObject.get("Result");
+						JSONObject unAuditResponseStatus = (JSONObject) unAuditResultObject.get("ResponseStatus");
+
+						String forbidEmpinfoResult = api.excuteOperation("BD_Empinfo", "Forbid", "{\"Ids\":\"" + user.getFid() + "\"}");
+						JSONObject forbidEmpinfoObject = JSONObject.parseObject(forbidEmpinfoResult);
+						JSONObject forbidResultObject = (JSONObject) forbidEmpinfoObject.get("Result");
+						JSONObject forbidResponseStatus = (JSONObject) forbidResultObject.get("ResponseStatus");
+
+						// 映射表删除用户
+						if (forbidResponseStatus.getBoolean("IsSuccess")) {
 							userMapper.deleteById(user.getId());
-							log.info("deleteEmpinfo success: {}", deleteEmpinfoResult);
+							log.info("deleteEmpinfo success: {}", forbidResponseStatus);
 						} else {
-							log.info("deleteEmpinfo fail: {}", deleteEmpinfoResult);
+							log.info("deleteEmpinfo fail: {}", forbidResponseStatus.getJSONArray("Errors").toJSONString());
 						}
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -425,16 +431,22 @@ public class EventController {
 					if (department != null && department.getNumber() != null) {
 						deptParentNumber = department.getNumber();
 					}
-
 					try {
-						String deptSaveJson = "{\"Model\":{\"FCreateOrgId\":{\"Number\":\"1\"}," +
-								"\"FNumber\":\"\",\"FUseOrgId\":{\"Number\":\"1\"},\"FName\":\"部门名称\"," +
-								"\"FHelpCode\":\"\",\"FParentID\":{\"FNumber\":\"父部门\"}," +
-								"\"FFullName\":\"\",\"FEffectDate\":\"1900-01-01\"," +
+						String deptSaveJson = "{\"Model\":{\"FCreateOrgId\":{\"Number\":\"创建组织\"}," +
+								"\"FNumber\":\"\",\"FUseOrgId\":{\"Number\":\"使用组织\"},\"FName\":\"部门名称\"," +
+								"\"FHelpCode\":\"助记码\",\"FParentID\":{\"FNumber\":\"父部门\"}," +
+								"\"FEffectDate\":\"1900-01-01\"," +
 								"\"FLapseDate\":\"9999-01-01\",\"FDescription\":\"\"," +
 								"\"FDeptProperty\":{\"FNumber\":\"\"},\"FSHRMapEntity\":{\"FMAPID\":0}}}";
+						deptSaveJson = deptSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
+						deptSaveJson = deptSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
 						deptSaveJson = deptSaveJson.replaceAll("部门名称", name);
 						deptSaveJson = deptSaveJson.replaceAll("父部门", deptParentNumber);
+
+						// 修改助记码
+						String code = SignUtil.corehrDepartment(department_id);
+						deptSaveJson = deptSaveJson.replaceAll("助记码", code);
+
 						String deptSaveResult = api.save("BD_Department", deptSaveJson);
 						JSONObject postObject = JSONObject.parseObject(deptSaveResult);
 						JSONObject resultObject = (JSONObject) postObject.get("Result");
@@ -505,25 +517,36 @@ public class EventController {
                     }
                     String deptParentNumber = "";
                     Department departmentParent = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, deptId).last("limit 1"));
-                    if (department != null && department.getKingdeeDeptId() != null) {
+					if (departmentParent == null) {
+						log.info("P2DepartmentUpdatedV3事件：部门映射表中根据deptId获取不到记录: {}", deptId);
+						return;
+					}
+                    if (department.getKingdeeDeptId() != null) {
 						deptParentNumber = departmentParent.getNumber();
                     }
                     // 修改Kingdee系统部门的名称ParentName和DeptName
-					String deptSaveJson = "{\"Model\":{\"FDEPTID\":\"部门ID\",\"FCreateOrgId\":{\"Number\":\"1\"}," +
-							"\"FNumber\":\"\",\"FUseOrgId\":{\"Number\":\"1\"},\"FName\":\"部门名称\"," +
-							"\"FHelpCode\":\"\",\"FParentID\":{\"FNumber\":\"父部门\"}," +
-							"\"FFullName\":\"\",\"FEffectDate\":\"1900-01-01\"," +
-							"\"FLapseDate\":\"9999-01-01\",\"FDescription\":\"\"," +
+					String deptSaveJson = "{\"Model\":{\"FDEPTID\":\"部门ID\",\"FCreateOrgId\":{\"Number\":\"创建组织\"}," +
+							"\"FNumber\":\"编号\",\"FUseOrgId\":{\"Number\":\"使用组织\"},\"FName\":\"部门名称\"," +
+							"\"FHelpCode\":\"助记码\",\"FParentID\":{\"FNumber\":\"父部门\"}," +
+							"\"FDescription\":\"\"," +
 							"\"FDeptProperty\":{\"FNumber\":\"\"},\"FSHRMapEntity\":{\"FMAPID\":0}}}";
+					deptSaveJson = deptSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
+					deptSaveJson = deptSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
+					deptSaveJson = deptSaveJson.replaceAll("编号", department.getNumber());
 					deptSaveJson = deptSaveJson.replaceAll("部门ID", kingdeeDeptId);
 					deptSaveJson = deptSaveJson.replaceAll("部门名称", name);
 					deptSaveJson = deptSaveJson.replaceAll("父部门", deptParentNumber);
+
+					// 修改助记码
+					String code = SignUtil.corehrDepartment(department_id);
+					deptSaveJson = deptSaveJson.replaceAll("助记码", code);
+
 					String deptSaveResult = api.save("BD_Department", deptSaveJson);
 					JSONObject postObject = JSONObject.parseObject(deptSaveResult);
 					JSONObject resultObject = (JSONObject) postObject.get("Result");
 					JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
 					// 金蝶修改部门成功，修改映射表金蝶parentId，部门名称
-					if (responseStatus.getBoolean("IsSuccess") &&  department != null) {
+					if (responseStatus.getBoolean("IsSuccess")) {
 						// 根据id查询kingdeeParentId
 						Department departmentTemp = Department.builder()
 								.id(department.getId())
@@ -549,27 +572,35 @@ public class EventController {
                     JSONObject object = (JSONObject) eventObject.get("object");
                     String department_id = object.getString("department_id");
                     Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, department_id).last("limit 1"));
-                    String feishuDeptId = "";
-                    if (department != null && department.getKingdeeDeptId() != null) {
-						feishuDeptId = department.getKingdeeDeptId();
-                    } else {
-						feishuDeptId = "0";
-                        log.info("部门删除事件查询不到部门KingdeeDeptId: {}", department_id);
-                    }
-
+					if (department == null) {
+						log.info("P2DepartmentDeletedV3事件：用户映射表中根据department_id获取不到记录: {}", department_id);
+						return;
+					}
 					try {
-						String deptDeleteJson = "{\"CreateOrgId\":0,\"Numbers\":[],\"ids\":\"实体主键\",\"NetworkCtrl\":\"\"}";
-						deptDeleteJson = deptDeleteJson.replaceAll("实体主键", feishuDeptId);
-						String deleteDeptResult = api.delete("BD_Department", deptDeleteJson);
-						JSONObject postObject = JSONObject.parseObject(deleteDeptResult);
-						JSONObject resultObject = (JSONObject) postObject.get("Result");
-						JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+//						String deptDeleteJson = "{\"CreateOrgId\":0,\"Numbers\":[],\"ids\":\"实体主键\",\"NetworkCtrl\":\"\"}";
+//						deptDeleteJson = deptDeleteJson.replaceAll("实体主键", feishuDeptId);
+//						String deleteDeptResult = api.delete("BD_Department", deptDeleteJson);
+//						JSONObject postObject = JSONObject.parseObject(deleteDeptResult);
+//						JSONObject resultObject = (JSONObject) postObject.get("Result");
+//						JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+
+						// 改为如果是审核了就反审核，并且禁用
+						String unAuditEmpinfoResult = api.unAudit("BD_Department", "{\"Ids\":\"" + department.getKingdeeDeptId() + "\"}");
+						JSONObject unAuditEmpinfoObject = JSONObject.parseObject(unAuditEmpinfoResult);
+						JSONObject unAuditResultObject = (JSONObject) unAuditEmpinfoObject.get("Result");
+						JSONObject unAuditResponseStatus = (JSONObject) unAuditResultObject.get("ResponseStatus");
+
+						String forbidEmpinfoResult = api.excuteOperation("BD_Department", "Forbid", "{\"Ids\":\"" + department.getKingdeeDeptId() + "\"}");
+						JSONObject forbidEmpinfoObject = JSONObject.parseObject(forbidEmpinfoResult);
+						JSONObject forbidResultObject = (JSONObject) forbidEmpinfoObject.get("Result");
+						JSONObject forbidResponseStatus = (JSONObject) forbidResultObject.get("ResponseStatus");
+
 						// 金蝶删除成功，映射表删除部门
-						if (responseStatus.getBoolean("IsSuccess")) {
+						if (forbidResponseStatus.getBoolean("IsSuccess")) {
 							departmentMapper.deleteById(department.getId());
-							log.info("deleteDept success: {}", deleteDeptResult);
+							log.info("deleteDept success: {}", forbidResponseStatus);
 						} else {
-							log.info("deleteDept fail: {}", deleteDeptResult);
+							log.info("deleteDept fail: {}", forbidResponseStatus.getJSONArray("Errors").toJSONString());
 						}
 					} catch (Exception e) {
 						e.printStackTrace();
