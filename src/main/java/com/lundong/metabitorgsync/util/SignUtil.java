@@ -364,6 +364,51 @@ public class SignUtil {
 	 * @return
 	 */
 	public static String corehrDepartment(String accessToken, String departmentId) {
+		String code = "";
+		String resultStr = HttpRequest.get(
+						"https://open.feishu.cn/open-apis/corehr/v1/departments/"
+								+ departmentId
+								+ "?department_id_type=department_id&user_id_type=user_id")
+				.timeout(2000)
+				.header("Authorization", "Bearer " + accessToken)
+				.execute()
+				.body();
+		if (StringUtils.isNotEmpty(resultStr)) {
+			JSONObject resultObject = (JSONObject) JSON.parse(resultStr);
+			if ("0".equals(resultObject.getString("code"))) {
+				JSONObject data = resultObject.getJSONObject("data");
+				JSONObject department = data.getJSONObject("department");
+				if (department != null) {
+					JSONObject hiberarchyCommon = department.getJSONObject("hiberarchy_common");
+					if (hiberarchyCommon != null) {
+						String codeTemp = hiberarchyCommon.getString("code");
+						if (codeTemp != null) {
+							return codeTemp;
+						}
+					}
+				}
+			}
+		}
+		return code;
+	}
+
+	/**
+	 * 飞书人事（企业版）查询单个部门编码
+	 *
+	 * @return
+	 */
+	public static String corehrDepartment(String departmentId) {
+		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
+		return corehrDepartment(accessToken, departmentId);
+	}
+
+	/**
+	 * 飞书人事（企业版）查询单个部门数据
+	 *
+	 * @return
+	 */
+	public static String corehrDepartmentData(String departmentId) {
+		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
 		String resultStr = HttpRequest.get(
 						"https://open.feishu.cn/open-apis/corehr/v1/departments/"
 								+ departmentId
@@ -377,23 +422,10 @@ public class SignUtil {
 			if (!"0".equals(resultObject.getString("code"))) {
 				return "";
 			} else {
-				JSONObject data = resultObject.getJSONObject("data");
-				JSONObject department = data.getJSONObject("department");
-				JSONObject hiberarchyCommon = department.getJSONObject("hiberarchy_common");
-				String code = hiberarchyCommon.getString("code");
-				return code;
+				return resultStr;
 			}
 		}
 		return "";
-	}
-	/**
-	 * 飞书人事（企业版）查询单个部门编码
-	 *
-	 * @return
-	 */
-	public static String corehrDepartment(String departmentId) {
-		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
-		return corehrDepartment(accessToken, departmentId);
 	}
 
 }

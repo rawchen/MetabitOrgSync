@@ -428,6 +428,10 @@ public class EventController {
 
 					// 根据飞书部门id查询部门number
 					Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, deptParentId).last("limit 1"));
+					if (department == null) {
+						log.info("P2DepartmentCreatedV3事件：用户映射表中根据deptParentId获取不到父部门记录: {}", deptParentId);
+						deptParentNumber = "0";
+					}
 					if (department != null && department.getNumber() != null) {
 						deptParentNumber = department.getNumber();
 					}
@@ -445,7 +449,11 @@ public class EventController {
 
 						// 修改助记码
 						String code = SignUtil.corehrDepartment(department_id);
-						deptSaveJson = deptSaveJson.replaceAll("助记码", code);
+						if (StringUtil.isEmpty(code)) {
+							deptSaveJson = deptSaveJson.replaceAll("助记码", "");
+						} else {
+							deptSaveJson = deptSaveJson.replaceAll("助记码", code);
+						}
 
 						String deptSaveResult = api.save("BD_Department", deptSaveJson);
 						JSONObject postObject = JSONObject.parseObject(deptSaveResult);
@@ -498,13 +506,15 @@ public class EventController {
                     String parent_department_id = object.getString("parent_department_id");
 
                     Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, department_id).last("limit 1"));
-                    String kingdeeDeptId = "";
-                    if (department != null && department.getKingdeeDeptId() != null) {
-						kingdeeDeptId = department.getKingdeeDeptId();
-                    } else {
-						kingdeeDeptId = "0";
-                        log.info("部门修改事件查询不到金蝶部门ID: {}", department_id);
-                    }
+					if (department == null) {
+						log.info("P2DepartmentUpdatedV3事件：部门映射表中根据deptId获取不到记录: {}", department_id);
+						return;
+					}
+					if (department.getKingdeeDeptId() == null || department.getNumber() == null) {
+						log.info("P2DepartmentUpdatedV3事件：部门映射表中根据deptId={}获取记录KingdeeDeptId为空或Number为空", department_id);
+						return;
+					}
+					String kingdeeDeptId = department.getKingdeeDeptId();
 
                     // 根据parent_department_id查询原来映射表的部门
                     String deptIdAndName = SignUtil.getDepartmentIdAndName(parent_department_id);
@@ -518,12 +528,12 @@ public class EventController {
                     String deptParentNumber = "";
                     Department departmentParent = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, deptId).last("limit 1"));
 					if (departmentParent == null) {
-						log.info("P2DepartmentUpdatedV3事件：部门映射表中根据deptId获取不到记录: {}", deptId);
-						return;
-					}
-                    if (department.getKingdeeDeptId() != null) {
+						log.info("P2DepartmentUpdatedV3事件：该部门通过上级部门id找不到: {}", deptId);
+						deptParentNumber = "0";
+					} else {
 						deptParentNumber = departmentParent.getNumber();
-                    }
+					}
+
                     // 修改Kingdee系统部门的名称ParentName和DeptName
 					String deptSaveJson = "{\"Model\":{\"FDEPTID\":\"部门ID\",\"FCreateOrgId\":{\"Number\":\"创建组织\"}," +
 							"\"FNumber\":\"编号\",\"FUseOrgId\":{\"Number\":\"使用组织\"},\"FName\":\"部门名称\"," +
@@ -535,12 +545,19 @@ public class EventController {
 					deptSaveJson = deptSaveJson.replaceAll("编号", department.getNumber());
 					deptSaveJson = deptSaveJson.replaceAll("部门ID", kingdeeDeptId);
 					deptSaveJson = deptSaveJson.replaceAll("部门名称", name);
-					deptSaveJson = deptSaveJson.replaceAll("父部门", deptParentNumber);
+					if (deptParentNumber == null) {
+						deptSaveJson = deptSaveJson.replaceAll("父部门", "0");
+					} else {
+						deptSaveJson = deptSaveJson.replaceAll("父部门", deptParentNumber);
+					}
 
 					// 修改助记码
 					String code = SignUtil.corehrDepartment(department_id);
-					deptSaveJson = deptSaveJson.replaceAll("助记码", code);
-
+					if (StringUtil.isEmpty(code)) {
+						deptSaveJson = deptSaveJson.replaceAll("助记码", "");
+					} else {
+						deptSaveJson = deptSaveJson.replaceAll("助记码", code);
+					}
 					String deptSaveResult = api.save("BD_Department", deptSaveJson);
 					JSONObject postObject = JSONObject.parseObject(deptSaveResult);
 					JSONObject resultObject = (JSONObject) postObject.get("Result");

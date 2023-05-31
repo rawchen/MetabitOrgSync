@@ -99,7 +99,7 @@ public class SystemServiceImpl implements SystemService {
 		for (Department department : departments) {
 			if (!StringUtil.isEmpty(department.getFeishuDeptId()) && !"0".equals(department.getFeishuDeptId())) {
 				String code = SignUtil.corehrDepartment(department.getFeishuDeptId());
-				if (!StringUtil.isEmpty(code)) {
+				if (!StringUtil.isEmpty(code) && !StringUtil.isEmpty(department.getKingdeeDeptId())) {
 					// 将这个code传给金蝶，调用金蝶修改部门接口
 					deptService.updateDepartment(department.getKingdeeDeptId(), code);
 				}

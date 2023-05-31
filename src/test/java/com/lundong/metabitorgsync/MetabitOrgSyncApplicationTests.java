@@ -111,4 +111,14 @@ class MetabitOrgSyncApplicationTests {
 		}
 	}
 
+	@Test
+	void testCorehrDepartmentData() {
+		System.out.println(SignUtil.corehrDepartmentData("7199920317373005852"));
+	}
+
+	@Test
+	void testCorehrDepartment() {
+		System.out.println(SignUtil.corehrDepartment("7199920317373005852"));
+	}
+
 }
