@@ -6,7 +6,9 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.lundong.metabitorgsync.config.Constants;
+import com.lundong.metabitorgsync.entity.CorehrDepartment;
 import com.lundong.metabitorgsync.entity.FeishuDept;
+import com.lundong.metabitorgsync.entity.FeishuOffboarding;
 import com.lundong.metabitorgsync.entity.FeishuUser;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -16,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * @author RawChen
@@ -43,6 +46,65 @@ public class SignUtil {
 				if (tenantAccessToken != null) {
 					return tenantAccessToken;
 				}
+			}
+		}
+		return "";
+	}
+
+	/**
+	 * 查询雇佣信息
+	 *
+	 * @param accessToken
+	 * @param employmentId
+	 * @return
+	 */
+	public static String getHireInformation(String accessToken, String employmentId) {
+		String resultStr = HttpRequest.get(
+						"https://open.feishu.cn/open-apis/corehr/v1/employments/"
+								+ employmentId
+								+ "?department_id_type=people_corehr_department_id&user_id_type=people_corehr_id")
+				.header("Authorization", "Bearer " + accessToken)
+				.execute().body();
+		if (StringUtils.isNotEmpty(resultStr)) {
+			JSONObject resultObject = (JSONObject) JSON.parse(resultStr);
+			if (!"0".equals(resultObject.getString("code"))) {
+				return "";
+			} else {
+				JSONObject data = (JSONObject) resultObject.get("data");
+				JSONObject department = (JSONObject) data.get("employment");
+				String personId = department.getString("person_id");
+				System.out.println("per " + personId);
+
+				return personId;
+			}
+		}
+		return "";
+	}
+
+
+	/**
+	 * 查询个人信息
+	 *
+	 * @param accessToken
+	 * @return
+	 */
+	public static String getPersons(String accessToken, String personId) {
+		String resultStr = HttpRequest.get(
+						"https://open.feishu.cn/open-apis/corehr/v1/persons/"
+								+ personId
+				)
+				.header("Authorization", "Bearer " + accessToken)
+				.execute().body();
+		if (StringUtils.isNotEmpty(resultStr)) {
+			JSONObject resultObject = (JSONObject) JSON.parse(resultStr);
+			if (!"0".equals(resultObject.getString("code"))) {
+				return "";
+			} else {
+				JSONObject data = (JSONObject) resultObject.get("data");
+				JSONObject department = (JSONObject) data.get("person");
+				String preferredName = department.getString("preferred_name");
+
+				return preferredName;
 			}
 		}
 		return "";
@@ -428,4 +490,116 @@ public class SignUtil {
 		return "";
 	}
 
+	/**
+	 * 调用搜索离职信息
+	 *
+	 * @param employmentId
+	 */
+	public static boolean corehrOffboardingsSearch(String accessToken, String employmentId) {
+		List<FeishuOffboarding> offboardingList = new ArrayList<>();
+		Map<String, Object> param = new HashMap<>();
+		String pageToken = "";
+		while (true) {
+			param.put("page_size", 100);
+			param.put("user_id_type", "people_corehr_id");
+
+//			JSONObject object = new JSONObject();
+//			object.put("employment_ids", new JSONArray().add(employmentId));
+			String resultStr = HttpRequest.post("https://open.feishu.cn/open-apis/corehr/v1/offboardings/search?page_size=100&user_id_type=people_corehr_id&pageToken=" + pageToken)
+					.header("Authorization", "Bearer " + accessToken)
+					.form(param)
+					.body("{\"employment_ids\":[\"" + employmentId + "\"]}")
+					.execute()
+					.body();
+			JSONObject jsonObject = JSON.parseObject(resultStr);
+			if (jsonObject.getInteger("code") != 0) {
+				return false;
+			}
+			JSONObject data = (JSONObject) jsonObject.get("data");
+			JSONArray items = (JSONArray) data.get("items");
+			if (items != null && items.size() > 0) {
+				for (int i = 0; i < items.size(); i++) {
+					// 构造数据对象
+					FeishuOffboarding offboarding = new FeishuOffboarding();
+					offboarding.setProcessId(items.getJSONObject(i).getJSONObject("application_info").getString("process_id"));
+					offboarding.setApplyInitiatorId(items.getJSONObject(i).getJSONObject("application_info").getString("apply_initiator_id"));
+					offboarding.setChecklistStatus(items.getJSONObject(i).getJSONObject("offboarding_checklist").getString("checklist_status"));
+					offboardingList.add(offboarding);
+				}
+				if ((boolean) data.get("has_more")) {
+					pageToken = data.getString("page_token");
+//					param.put("page_token", data.getString("page_token"));
+				} else {
+					break;
+				}
+			}
+
+		}
+
+		for (FeishuOffboarding offboarding : offboardingList) {
+			if ("Finished".equals(offboarding.getChecklistStatus())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * 调用搜索离职信息
+	 *
+	 * @param employmentId
+	 */
+	public static boolean corehrOffboardingsSearch(String employmentId) {
+		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
+		return corehrOffboardingsSearch(accessToken, employmentId);
+	}
+
+	/**
+	 * 批量查询部门，只获取是否启用和部门ID
+	 *
+	 * @param accessToken
+	 * @return
+	 */
+	public static List<CorehrDepartment> findCorehrDepartmentIsActive(String accessToken) {
+		List<CorehrDepartment> departments = new ArrayList<>();
+		Map<String, Object> param = new HashMap<>();
+		while (true) {
+			param.put("department_id_type", "department_id");
+			param.put("user_id_type", "user_id");
+			param.put("page_size", 100);
+			String resultStr = HttpRequest.get("https://open.feishu.cn/open-apis/corehr/v1/departments")
+					.header("Authorization", "Bearer " + accessToken)
+					.form(param)
+					.execute()
+					.body();
+			JSONObject jsonObject = JSON.parseObject(resultStr);
+			JSONObject data = (JSONObject) jsonObject.get("data");
+			JSONArray items = (JSONArray) data.get("items");
+			for (int i = 0; i < items.size(); i++) {
+				// 构造飞书用户对象
+				CorehrDepartment department = new CorehrDepartment();
+				department.setActive(items.getJSONObject(i).getJSONObject("hiberarchy_common").getBoolean("active"));
+				department.setId(items.getJSONObject(i).getString("id"));
+				departments.add(department);
+			}
+			if ((boolean) data.get("has_more")) {
+				param.put("page_token", data.getString("page_token"));
+			} else {
+				break;
+			}
+		}
+		// 过滤掉id为null的
+		departments = departments.stream().filter(d -> d.getId() != null && !"".equals(d.getId())).collect(Collectors.toList());
+		return departments;
+	}
+
+	/**
+	 * 批量查询部门，只获取是否启用和部门ID
+	 *
+	 * @return
+	 */
+	public static List<CorehrDepartment> findCorehrDepartmentIsActive() {
+		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
+		return findCorehrDepartmentIsActive(accessToken);
+	}
 }

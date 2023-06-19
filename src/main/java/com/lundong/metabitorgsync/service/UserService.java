@@ -1,5 +1,6 @@
 package com.lundong.metabitorgsync.service;
 
+import com.lundong.metabitorgsync.entity.KingdeePerson;
 import com.lundong.metabitorgsync.entity.KingdeeUser;
 
 import java.util.List;
@@ -16,4 +17,12 @@ public interface UserService {
 	 * @return
 	 */
 	List<KingdeeUser> queryUserList();
+
+	/**
+	 * 获取Kingdee人员详细信息(公共)表列表
+	 *
+	 * @param filterString
+	 * @return
+	 */
+	List<KingdeePerson> queryPersonList(String filterString);
 }

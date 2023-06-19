@@ -5,19 +5,19 @@ import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.kingdee.bos.webapi.sdk.K3CloudApi;
 import com.lark.oapi.core.utils.Jsons;
-import com.lark.oapi.event.EventDispatcher;
-import com.lark.oapi.sdk.servlet.ext.ServletAdapter;
 import com.lark.oapi.service.contact.v3.ContactService;
 import com.lark.oapi.service.contact.v3.model.*;
 import com.lundong.metabitorgsync.config.Constants;
 import com.lundong.metabitorgsync.entity.Department;
-import com.lundong.metabitorgsync.entity.KingdeeDept;
-import com.lundong.metabitorgsync.entity.KingdeeOrgPost;
 import com.lundong.metabitorgsync.entity.User;
+import com.lundong.metabitorgsync.entity.*;
+import com.lundong.metabitorgsync.event.CustomEventDispatcher;
+import com.lundong.metabitorgsync.event.CustomServletAdapter;
 import com.lundong.metabitorgsync.mapper.DepartmentMapper;
 import com.lundong.metabitorgsync.mapper.UserMapper;
 import com.lundong.metabitorgsync.service.DeptService;
 import com.lundong.metabitorgsync.service.OrgPostService;
+import com.lundong.metabitorgsync.service.UserService;
 import com.lundong.metabitorgsync.util.SignUtil;
 import com.lundong.metabitorgsync.util.StringUtil;
 import com.lundong.metabitorgsync.util.TimeUtil;
@@ -40,7 +40,7 @@ import java.util.List;
 public class EventController {
 
     @Autowired
-    private ServletAdapter servletAdapter;
+    private CustomServletAdapter servletAdapter;
 
     @Autowired
     DepartmentMapper departmentMapper;
@@ -51,14 +51,70 @@ public class EventController {
     @Autowired
     private DeptService deptService;
 
+	@Autowired
+	private UserService userService;
+
     @Autowired
     private OrgPostService orgPostService;
 
 	private final K3CloudApi api = new K3CloudApi();
 
     // 注册消息处理器
-    private final EventDispatcher EVENT_DISPATCHER = EventDispatcher
+    private final CustomEventDispatcher EVENT_DISPATCHER = CustomEventDispatcher
             .newBuilder(Constants.VERIFICATION_TOKEN, Constants.ENCRYPT_KEY)
+//			.onCorehrOffboardingUpdatedV1(new CorehrOffboardingUpdatedV1Handler() {
+//				// 离职状态变更
+//				@Override
+//				public void handle(CorehrOffboardingUpdatedEvent event) throws Exception {
+//					log.info("CorehrOffboardingUpdated: {}", Jsons.DEFAULT.toJson(event));
+//					String resultJson = Jsons.DEFAULT.toJson(event);
+//					JSONObject eventsObject = (JSONObject) JSONObject.parse(resultJson);
+//					JSONObject eventObject = (JSONObject) eventsObject.get("event");
+//					Integer status = eventObject.getInteger("status");
+//
+//					String userId = "";
+//					if (status != null && status == 5) {
+//						JSONObject targetUserId = eventObject.getJSONObject("target_user_id");
+//						if (targetUserId != null) {
+//							userId = targetUserId.getString("user_id");
+//							log.info("userId: {} processId: {} offboardingId: {}", userId, eventObject.getString("process_id"), eventsObject.getString("offboarding_id"));
+//						}
+//					}
+//
+//					User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getUserId, userId).last("limit 1"));
+//					if (user == null) {
+//						log.info("CorehrOffboardingUpdatedV1事件：用户映射表中根据user_id获取不到记录: {}", userId);
+//						return;
+//					}
+//
+//					// TODO 根据离职状态变更的 process_id
+//					// 调用搜索离职信息
+//					// offboarding_checklist -> checklist_status == Finished 完成办理
+//					// 如果该事件雇员查询到离职审批为完成办理，就执行
+//					String employmentId = eventObject.getString("employment_id");
+//					boolean result = SignUtil.corehrOffboardingsSearch(employmentId);
+//					if (result) {
+//						// 改为如果是审核了就反审核，并且禁用
+//						String unAuditEmpinfoResult = api.unAudit("BD_Empinfo", "{\"Ids\":\"" + user.getFid() + "\"}");
+//						JSONObject unAuditEmpinfoObject = JSONObject.parseObject(unAuditEmpinfoResult);
+//						JSONObject unAuditResultObject = (JSONObject) unAuditEmpinfoObject.get("Result");
+//						JSONObject unAuditResponseStatus = (JSONObject) unAuditResultObject.get("ResponseStatus");
+//
+//						String forbidEmpinfoResult = api.excuteOperation("BD_Empinfo", "Forbid", "{\"Ids\":\"" + user.getFid() + "\"}");
+//						JSONObject forbidEmpinfoObject = JSONObject.parseObject(forbidEmpinfoResult);
+//						JSONObject forbidResultObject = (JSONObject) forbidEmpinfoObject.get("Result");
+//						JSONObject forbidResponseStatus = (JSONObject) forbidResultObject.get("ResponseStatus");
+//
+//						// 映射表删除用户
+//						if (forbidResponseStatus.getBoolean("IsSuccess")) {
+//							userMapper.deleteById(user.getId());
+//							log.info("deleteEmpinfo success: {}", forbidResponseStatus);
+//						} else {
+//							log.info("deleteEmpinfo fail: {}", forbidResponseStatus.getJSONArray("Errors").toJSONString());
+//						}
+//					}
+//				}
+//			})
             .onP2UserCreatedV3(new ContactService.P2UserCreatedV3Handler() {
                 // 用户创建
                 @Override
@@ -153,6 +209,9 @@ public class EventController {
 							if (responseStatus.getBoolean("IsSuccess")) {
 								// 请求成功
 								orgPostNumber = resultObject.getString("Number");
+								// 提交 & 审核
+								api.submit("HR_ORG_HRPOST", "{\"Numbers\":\"" + orgPostNumber + "\"}");
+								api.audit("HR_ORG_HRPOST", "{\"Numbers\":\"" + orgPostNumber + "\"}");
 							}
 						}
 
@@ -199,6 +258,9 @@ public class EventController {
 									.build();
 							userMapper.insert(user);
                             log.info("saveEmpinfo success: {}", saveEmpinfoResult);
+							// 提交 & 审核
+							api.submit("BD_Empinfo", "{\"Numbers\":\"" + employee_no + "\"}");
+							api.audit("BD_Empinfo", "{\"Numbers\":\"" + employee_no + "\"}");
                         } else {
                             log.info("saveEmpinfo fail: {}", saveEmpinfoResult);
                         }
@@ -300,9 +362,12 @@ public class EventController {
 							if (responseStatus.getBoolean("IsSuccess")) {
 								// 请求成功
 								orgPostNumber = resultObject.getString("Number");
+								// 提交 & 审核
+								api.submit("HR_ORG_HRPOST", "{\"Numbers\":\"" + orgPostNumber + "\"}");
+								api.audit("HR_ORG_HRPOST", "{\"Numbers\":\"" + orgPostNumber + "\"}");
 							}
 						}
-
+						// 修改基本信息
 						String staffSaveJson = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
 								"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
 								"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
@@ -314,9 +379,7 @@ public class EventController {
 								"\"FCreateUser\":\"false\",\"FCreateCashier\":\"false\",\"FCashierGrp\":{\"FNUMBER\":\"\"}," +
 								"\"FUserId\":{\"FUSERACCOUNT\":\"\"},\"FCashierId\":{\"FNUMBER\":\"\"},\"FSalerId\":{\"FNUMBER\":\"\"}," +
 								"\"FPostId\":{\"FNUMBER\":\"\"},\"FJoinDate\":\"1900-01-01\",\"FUniportalNo\":\"\"," +
-								"\"FSHRMapEntity\":{\"FMAPID\":0},\"FPostEntity\":[{\"FENTRYID\":0,\"FWorkOrgId\":{\"FNumber\":\"工作组织\"}," +
-								"\"FPostDept\":{\"FNumber\":\"所属部门\"},\"FPost\":{\"FNumber\":\"就任岗位\"},\"FStaffStartDate\":\"任岗开始日期\"" +
-								",\"FIsFirstPost\":\"true\",\"FStaffDetails\":0,\"FOperatorType\":\"\"}]," +
+								"\"FSHRMapEntity\":{\"FMAPID\":0}," +
 								"\"FBankInfo\":[{\"FBankId\":0,\"FBankCountry\":{\"FNumber\":\"\"},\"FBankCode\":\"\"," +
 								"\"FBankHolder\":\"\",\"FBankTypeRec\":{\"FNUMBER\":\"\"},\"FTextBankDetail\":\"\"," +
 								"\"FBankDetail\":{\"FNUMBER\":\"\"},\"FOpenBankName\":\"\",\"FOpenAddressRec\":\"\"," +
@@ -327,12 +390,13 @@ public class EventController {
 						staffSaveJson = staffSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
 						staffSaveJson = staffSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
 						staffSaveJson = staffSaveJson.replaceAll("员工编号", employee_no);
-						staffSaveJson = staffSaveJson.replaceAll("所属部门", kingdeeDeptNumber);
-						staffSaveJson = staffSaveJson.replaceAll("就任岗位", orgPostNumber);
-						staffSaveJson = staffSaveJson.replaceAll("工作组织", Constants.ORG_NUMBER);
+
+//						staffSaveJson = staffSaveJson.replaceAll("所属部门", kingdeeDeptNumber);
+//						staffSaveJson = staffSaveJson.replaceAll("就任岗位", orgPostNumber);
+//						staffSaveJson = staffSaveJson.replaceAll("工作组织", Constants.ORG_NUMBER);
 						// 非必填
 						staffSaveJson = staffSaveJson.replaceAll("移动电话", StringUtil.mobileDivAreaCode(mobile));
-						staffSaveJson = staffSaveJson.replaceAll("任岗开始日期", TimeUtil.timestampToYMD(join_time));
+//						staffSaveJson = staffSaveJson.replaceAll("任岗开始日期", TimeUtil.timestampToYMD(join_time));
 						String saveEmpinfoResult = api.save("BD_Empinfo", staffSaveJson);
 						JSONObject postObject = JSONObject.parseObject(saveEmpinfoResult);
 						JSONObject resultObject = (JSONObject) postObject.get("Result");
@@ -350,6 +414,94 @@ public class EventController {
 						} else {
 							log.info("saveEmpinfo fail: {}", saveEmpinfoResult);
 						}
+
+						// 判断岗位是否变更：如果事件体拿到的岗位和当前用户主岗位的名称相同，则说明岗位没变动，不用传岗位明细，否则调用修改接口
+						// 查询员工岗位信息
+						String viewStaffInfoJson = "{\"CreateOrgId\":0,\"Number\":\"\",\"Id\":\"员工ID\",\"IsSortBySeq\":\"false\"}";
+						viewStaffInfoJson = viewStaffInfoJson.replaceAll("员工ID", user.getFid());
+						System.out.println("viewStaffInfoJson: " + viewStaffInfoJson);
+						String viewStaffInfoJsonResult = api.view("BD_Empinfo", viewStaffInfoJson);
+						JSONObject postObjectNew = JSONObject.parseObject(viewStaffInfoJsonResult);
+						JSONObject resultObjectNew = (JSONObject) postObjectNew.get("Result");
+						JSONObject responseStatusNew = (JSONObject) resultObjectNew.get("ResponseStatus");
+						if (responseStatusNew.getBoolean("IsSuccess")) {
+							String postName = "";
+							// 请求成功
+							JSONObject result = resultObjectNew.getJSONObject("Result");
+							JSONArray postEntity = result.getJSONArray("PostEntity");
+							for (int i = 0; i < postEntity.size(); i++) {
+								if (postEntity.getJSONObject(i).getBoolean("IsFirstPost")) {
+									JSONArray jsonArrayName = postEntity.getJSONObject(i).getJSONObject("Post").getJSONArray("Name");
+									for (int j = 0; j < jsonArrayName.size(); j++) {
+										if ("2052".equals(jsonArrayName.getJSONObject(j).getString("Key"))) {
+											postName = jsonArrayName.getJSONObject(j).getString("Value");
+											break;
+										}
+									}
+
+								}
+							}
+
+							// 不可能只修改个用户名称也新增岗位明细吧
+							// 新增任岗明细条件： 改了岗位 || 改了部门
+							if (!postName.equals(job_title) || !department.getFeishuDeptId().equals(user.getDeptId())) {
+								// 岗位不同就添加岗位明细
+								String newStaffSaveJson = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[],\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\"," +
+										"\"IsVerifyBaseDataField\":\"false\",\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
+										"\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\",\"IsControlPrecision\":\"false\"," +
+										"\"ValidateRepeatJson\":\"false\",\"Model\":{\"FCreateOrgId\":{\"FNumber\":\"创建组织\"},\"FNumber\":\"员工编码\"," +
+										"\"FUseOrgId\":{\"FNumber\":\"使用组织\"}, \"FPerson\":{\"FNumber\":\"人员详细信息编号\"},\"FStartDate\":\"任岗开始日期\"," +
+										"\"FDept\":{\"FNumber\":\"所属部门\"},\"FName\":\"姓名\",\"FPosition\":{\"FNumber\":\"就任岗位\"},\"FEmpInfoId\":{\"FNumber\":\"员工编号\"}," +
+										"\"FDescription\":\"\",\"FOperatorType\":\"\",\"FPOSTBILLEntity\":{\"FENTRYID\":0,\"FIsFirstPost\":\"true\"}," +
+										"\"FOtherEntity\":{\"FENTRYID\":0},\"FSHRMapEntity\":{\"FMAPID\":0},\"FStaffRole\":[{\"FSTAFFROLEID\":0," +
+										"\"FRoleStaffID\":0,\"FIsStaffRole\":\"\"}],\"FPostEntity\":[{\"FOperaType\":\"\"}]}}";
+								newStaffSaveJson = newStaffSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
+								newStaffSaveJson = newStaffSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
+
+
+								JSONArray jsonArrayName = result.getJSONArray("Name");
+								for (int j = 0; j < jsonArrayName.size(); j++) {
+									if ("2052".equals(jsonArrayName.getJSONObject(j).getString("Key"))) {
+										newStaffSaveJson = newStaffSaveJson.replaceAll("姓名", jsonArrayName.getJSONObject(j).getString("Value"));
+										break;
+									}
+								}
+								System.out.println("员工编号: " + result.getString("Id") + "  " + result.getString("Number"));
+
+								// 通过表DB_Person人员详细信息(公共)表列表，根据上一步员工FID->fEmpInfo找到对应的fnumber
+								String personNumber = "";
+								List<KingdeePerson> personList = userService.queryPersonList("fEmpInfo='" + result.getString("Id") + "'");
+								if (personList != null && personList.size() > 0) {
+									personNumber = personList.get(0).getNumber();
+								}
+
+								newStaffSaveJson = newStaffSaveJson.replaceAll("员工编号", result.getString("Number"));
+								newStaffSaveJson = newStaffSaveJson.replaceAll("员工编码", result.getString("Number"));
+								newStaffSaveJson = newStaffSaveJson.replaceAll("人员详细信息编号", personNumber);
+
+								newStaffSaveJson = newStaffSaveJson.replaceAll("所属部门", kingdeeDeptNumber);
+								newStaffSaveJson = newStaffSaveJson.replaceAll("就任岗位", orgPostNumber);
+								newStaffSaveJson = newStaffSaveJson.replaceAll("任岗开始日期", TimeUtil.timestampToYMD(join_time));
+								String saveNewStaffResult = api.save("BD_NEWSTAFF", newStaffSaveJson);
+								JSONObject postObjectNewStaff = JSONObject.parseObject(saveNewStaffResult);
+								JSONObject resultObjectNewStaff = (JSONObject) postObjectNewStaff.get("Result");
+								JSONObject responseStatusNewStaff = (JSONObject) resultObjectNewStaff.get("ResponseStatus");
+								// 金蝶修改成功，映射表更新用户
+								if (responseStatusNewStaff.getBoolean("IsSuccess")) {
+									log.info("saveNewStaff success: {}", saveNewStaffResult);
+									String newStaffNumber = resultObjectNewStaff.getString("Number");
+									// 提交 & 审核
+									api.submit("BD_NEWSTAFF", "{\"Numbers\":\"" + newStaffNumber + "\"}");
+									api.audit("BD_NEWSTAFF", "{\"Numbers\":\"" + newStaffNumber + "\"}");
+								} else {
+									log.info("saveNewStaff fail param: {}", newStaffSaveJson);
+									log.info("saveNewStaff fail result: {}", saveNewStaffResult);
+								}
+
+							}
+						}
+
+
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -370,12 +522,6 @@ public class EventController {
 						return;
 					}
                     try {
-//						String staffDeleteJson = "{\"CreateOrgId\":0,\"Numbers\":[],\"ids\":\"实体主键\",\"NetworkCtrl\":\"\"}";
-//						staffDeleteJson = staffDeleteJson.replaceAll("实体主键", fid);
-//						String deleteEmpinfoResult = api.delete("BD_Empinfo", staffDeleteJson);
-//						JSONObject postObject = JSONObject.parseObject(deleteEmpinfoResult);
-//						JSONObject resultObject = (JSONObject) postObject.get("Result");
-//						JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
 
 						// 改为如果是审核了就反审核，并且禁用
 						String unAuditEmpinfoResult = api.unAudit("BD_Empinfo", "{\"Ids\":\"" + user.getFid() + "\"}");
@@ -399,8 +545,7 @@ public class EventController {
                         e.printStackTrace();
                     }
                 }
-            })
-            .onP2DepartmentCreatedV3(new ContactService.P2DepartmentCreatedV3Handler() {
+            }).onP2DepartmentCreatedV3(new ContactService.P2DepartmentCreatedV3Handler() {
                 // 部门创建
                 @Override
                 public void handle(P2DepartmentCreatedV3 event) throws Exception {
@@ -461,6 +606,12 @@ public class EventController {
 						JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
 						// 金蝶新增部门成功，获取id，映射表创建部门
 						if (responseStatus.getBoolean("IsSuccess")) {
+
+							String departmentNewNumber = resultObject.getString("Number");
+							// 提交 & 审核
+							api.submit("BD_Department", "{\"Numbers\":\"" + departmentNewNumber + "\"}");
+							api.audit("BD_Department", "{\"Numbers\":\"" + departmentNewNumber + "\"}");
+
 							String kingdeeDeptId = resultObject.getString("Id");
 							String number = resultObject.getString("Number");
 							String kingdeeParentId = "";
@@ -602,16 +753,60 @@ public class EventController {
 //						JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
 
 						// 改为如果是审核了就反审核，并且禁用
-						String unAuditEmpinfoResult = api.unAudit("BD_Department", "{\"Ids\":\"" + department.getKingdeeDeptId() + "\"}");
-						JSONObject unAuditEmpinfoObject = JSONObject.parseObject(unAuditEmpinfoResult);
+//						String unAuditEmpinfoResult = api.unAudit("BD_Department", "{\"Ids\":\"" + department.getKingdeeDeptId() + "\"}");
+//						JSONObject unAuditEmpinfoObject = JSONObject.parseObject(unAuditEmpinfoResult);
+//						JSONObject unAuditResultObject = (JSONObject) unAuditEmpinfoObject.get("Result");
+//						JSONObject unAuditResponseStatus = (JSONObject) unAuditResultObject.get("ResponseStatus");
+//
+//						String forbidEmpinfoResult = api.excuteOperation("BD_Department", "Forbid", "{\"Ids\":\"" + department.getKingdeeDeptId() + "\"}");
+//						JSONObject forbidEmpinfoObject = JSONObject.parseObject(forbidEmpinfoResult);
+//						JSONObject forbidResultObject = (JSONObject) forbidEmpinfoObject.get("Result");
+//						JSONObject forbidResponseStatus = (JSONObject) forbidResultObject.get("ResponseStatus");
+//
+//						// 金蝶删除成功，映射表删除部门
+//						if (forbidResponseStatus.getBoolean("IsSuccess")) {
+//							departmentMapper.deleteById(department.getId());
+//							log.info("deleteDept success: {}", forbidResponseStatus);
+//						} else {
+//							log.info("deleteDept fail: {}", forbidResponseStatus.getJSONArray("Errors").toJSONString());
+//						}
+
+//						String deptDeleteJson = "{\"data\":\"{\"FormId\":\"HR_ORG_HRPOST\",\"FieldKeys\":\"FPOSTID\",\"FilterString\":\"FDept='" + department.getKingdeeDeptId() + "'\",\"OrderString\":\"\",\"TopRowCount\":0,\"StartRow\":0,\"Limit\":2000,\"SubSystemId\":\"\"}\"}";
+						String text = "{\"FormId\":\"HR_ORG_HRPOST\",\"FieldKeys\":\"FPOSTID\",\"FilterString\":\"FDept='" + department.getKingdeeDeptId() + "'\",\"OrderString\":\"\",\"TopRowCount\":0,\"StartRow\":0,\"Limit\":2000,\"SubSystemId\":\"\"}";
+						final  K3CloudApi api = new K3CloudApi();
+						String unAuditEmpinfoResult = api.executeBillQueryJson(text);
+						JSONArray jsonArray = JSONArray.parseArray(unAuditEmpinfoResult);
+						//部门下的岗位
+						for (int i = 0; i<jsonArray.size(); i++) {
+							Object FPost = jsonArray.get(i);
+							String stationReplace = FPost.toString().replace("[", "").replace("]", "");
+							String empinfo = "{\"FormId\":\"BD_Empinfo\",\"FieldKeys\":\"FID\",\"FilterString\":\"FPost='" + stationReplace + "'\",\"OrderString\":\"\",\"TopRowCount\":0,\"StartRow\":0,\"Limit\":2000,\"SubSystemId\":\"\"}";
+							String json = api.executeBillQueryJson(empinfo);
+							//用户
+							JSONArray userJson = JSONArray.parseArray(json);
+							//岗位任职人员
+							for (int n = 0 ; n<userJson.size();n++ ) {
+								String userReplace = userJson.get(n).toString().replace("[", "").replace("]", "");
+								//反审核用户
+								String bdEmpinfo = api.unAudit("BD_Empinfo", "{\"Ids\":\"" + userReplace + "\"}");
+								//禁用用户
+								String forbidEmpinfoResult = api.excuteOperation("BD_Empinfo", "Forbid", "{\"Ids\":\"" + userReplace + "\"}");
+							}
+							//反审核岗位
+							String unAuditempinfo = api.unAudit("HR_ORG_HRPOST", "{\"Ids\":\"" + stationReplace + "\"}");
+							//禁用岗位
+							String unAuditStationResult = api.excuteOperation("HR_ORG_HRPOST", "Forbid", "{\"Ids\":\"" + stationReplace + "\"}");
+						}
+						//反审核部门
+						String unDepartment = api.unAudit("BD_Department", "{\"Ids\":\"" + department.getKingdeeDeptId() + "\"}");
+						JSONObject unAuditEmpinfoObject = JSONObject.parseObject(unDepartment);
 						JSONObject unAuditResultObject = (JSONObject) unAuditEmpinfoObject.get("Result");
 						JSONObject unAuditResponseStatus = (JSONObject) unAuditResultObject.get("ResponseStatus");
-
-						String forbidEmpinfoResult = api.excuteOperation("BD_Department", "Forbid", "{\"Ids\":\"" + department.getKingdeeDeptId() + "\"}");
-						JSONObject forbidEmpinfoObject = JSONObject.parseObject(forbidEmpinfoResult);
+						//禁用部门
+						String unAuditDepartmentResult = api.excuteOperation("BD_Department", "Forbid", "{\"Ids\":\"" + department.getKingdeeDeptId() + "\"}");
+						JSONObject forbidEmpinfoObject = JSONObject.parseObject(unAuditDepartmentResult);
 						JSONObject forbidResultObject = (JSONObject) forbidEmpinfoObject.get("Result");
 						JSONObject forbidResponseStatus = (JSONObject) forbidResultObject.get("ResponseStatus");
-
 						// 金蝶删除成功，映射表删除部门
 						if (forbidResponseStatus.getBoolean("IsSuccess")) {
 							departmentMapper.deleteById(department.getId());
