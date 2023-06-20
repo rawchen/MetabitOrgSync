@@ -22,4 +22,9 @@ public interface DeptService {
 	 * @return
 	 */
 	boolean updateDepartment(String kingdeeDeptId, String code);
+
+	/**
+	 * 每天定时检查所有停用部门
+	 */
+	void syncStopDeptData();
 }

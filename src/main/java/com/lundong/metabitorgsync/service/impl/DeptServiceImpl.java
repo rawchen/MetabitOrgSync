@@ -12,7 +12,6 @@ import com.lundong.metabitorgsync.service.DeptService;
 import com.lundong.metabitorgsync.util.SignUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -88,9 +87,9 @@ public class DeptServiceImpl implements DeptService {
 	}
 
 	/**
-	 * 每天定时检查所有停用部门并
+	 * 每天定时检查所有停用部门
 	 */
-	@Scheduled(cron = "0 0 1 ? * *")
+//	@Scheduled(cron = "0 0 1 ? * *")
 	public void syncStopDeptData() {
 
 		// 查询所有部门，过滤出active为false

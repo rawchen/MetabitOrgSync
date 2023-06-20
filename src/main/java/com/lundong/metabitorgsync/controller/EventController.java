@@ -136,136 +136,141 @@ public class EventController {
 //                    String email = object.getString("email");
 //                    String gender = object.getString("gender");
 //                    String city = object.getString("city");
-//                    String employee_type = object.getString("employee_type");
+                    Integer employee_type = object.getInteger("employee_type");
+					System.out.println("employee_type: " + employee_type);
+					// 排除外包
+					if (employee_type != 3) {
 //                    String nickname = object.getString("nickname");
 //                    String leader_user_id = object.getString("leader_user_id");
 
-                    // 判断这个用户在映射表是否已经存在（防止事件流重复订阅）
-                    User userTemp = userMapper.selectOne(new LambdaQueryWrapper<User>()
-                            .eq(User::getUserId, user_id).last("limit 1"));
-                    if (userTemp != null) {
-                        log.info("P2UserCreatedV3: 添加失败，重复添加用户：" + name);
-                        return;
-                    }
+						// 判断这个用户在映射表是否已经存在（防止事件流重复订阅）
+						User userTemp = userMapper.selectOne(new LambdaQueryWrapper<User>()
+								.eq(User::getUserId, user_id).last("limit 1"));
 
-					String kingdeeDeptId = "";
-					String kingdeeDeptNumber = "";
+						if (userTemp != null) {
+							log.info("P2UserCreatedV3: 添加失败，重复添加用户：" + name);
+							return;
+						}
 
-                    // 拿到飞书-Kingdee映射的部门id
-                    String deptIdAndName = SignUtil.getDepartmentIdAndName(department_ids.getString(0));
-                    String deptId = "";
-                    if (deptIdAndName.contains(",")) {
-                        String[] split = deptIdAndName.split(",");
-                        deptId = split[0];
-                    }
-                    Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, deptId).last("limit 1"));
-					if (department == null) {
-						log.info("P2UserCreatedV3：部门映射表中根据deptId获取不到记录: {}", deptId);
-						return;
-					}
-                    if (department.getKingdeeDeptId() != null) {
-						kingdeeDeptId = department.getKingdeeDeptId();
-                        kingdeeDeptNumber = department.getNumber();
-                    } else {
-						kingdeeDeptId = "0";
-                        kingdeeDeptNumber = "0";
-                    }
-                    String orgPostNumber = "0";
-					try {
-						// 根据所属部门作为过滤条件，调用金蝶查询就任岗位列表接口，
-						// 列表循环匹配名称找对应岗位number，如果匹配不到就新增岗位，取岗位number
-                        List<KingdeeOrgPost> kingdeeOrgPosts = orgPostService.queryOrgPostList("FDEPTID='" + kingdeeDeptId + "'");
-                        if (kingdeeOrgPosts != null && kingdeeOrgPosts.size() > 0) {
-							for (KingdeeOrgPost orgPost : kingdeeOrgPosts) {
-								if (job_title.equals(orgPost.getName())) {
-									orgPostNumber = orgPost.getNumber();
-									break;
+						String kingdeeDeptId = "";
+						String kingdeeDeptNumber = "";
+
+						// 拿到飞书-Kingdee映射的部门id
+						String deptIdAndName = SignUtil.getDepartmentIdAndName(department_ids.getString(0));
+						String deptId = "";
+						if (deptIdAndName.contains(",")) {
+							String[] split = deptIdAndName.split(",");
+							deptId = split[0];
+						}
+						Department department = departmentMapper.selectOne(new LambdaQueryWrapper<Department>().eq(Department::getFeishuDeptId, deptId).last("limit 1"));
+						if (department == null) {
+							log.info("P2UserCreatedV3：部门映射表中根据deptId获取不到记录: {}", deptId);
+							return;
+						}
+						if (department.getKingdeeDeptId() != null) {
+							kingdeeDeptId = department.getKingdeeDeptId();
+							kingdeeDeptNumber = department.getNumber();
+						} else {
+							kingdeeDeptId = "0";
+							kingdeeDeptNumber = "0";
+						}
+						String orgPostNumber = "0";
+						try {
+							// 根据所属部门作为过滤条件，调用金蝶查询就任岗位列表接口，
+							// 列表循环匹配名称找对应岗位number，如果匹配不到就新增岗位，取岗位number
+							List<KingdeeOrgPost> kingdeeOrgPosts = orgPostService.queryOrgPostList("FDEPTID='" + kingdeeDeptId + "'");
+							if (kingdeeOrgPosts != null && kingdeeOrgPosts.size() > 0) {
+								for (KingdeeOrgPost orgPost : kingdeeOrgPosts) {
+									if (job_title.equals(orgPost.getName())) {
+										orgPostNumber = orgPost.getNumber();
+										break;
+									}
 								}
 							}
-						}
-						// 如果根据部门没有找到至少一个岗位信息就新增一个岗位
-						if ("0".equals(orgPostNumber)) {
-							String saveOrgPostData = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
+							// 如果根据部门没有找到至少一个岗位信息就新增一个岗位
+							if ("0".equals(orgPostNumber)) {
+								String saveOrgPostData = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
+										"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
+										"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
+										"\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
+										"\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
+										"\"Model\":{\"FPOSTID\":0,\"FCreateOrgId\":{\"FNumber\":\"创建组织\"},\"FNumber\":\"\"," +
+										"\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FName\":\"名称\",\"FHelpCode\":\"\"," +
+										"\"FDept\":{\"FNumber\":\"所属部门\"},\"FEffectDate\":\"1900-01-01\"," +
+										"\"FLapseDate\":\"1900-01-01\",\"FDESCRIPTIONS\":\"\",\"FHRPostSubHead\":{\"FHRPOSTID\":0," +
+										"\"FLEADERPOST\":\"false\"},\"FSHRMapEntity\":{\"FMAPID\":0}," +
+										"\"FSubReportEntity\":[{\"FSubNumber\":\"\"}]}}";
+								saveOrgPostData = saveOrgPostData.replaceAll("所属部门", kingdeeDeptNumber);
+								saveOrgPostData = saveOrgPostData.replaceAll("名称", job_title);
+								saveOrgPostData = saveOrgPostData.replaceAll("创建组织", Constants.ORG_NUMBER);
+								saveOrgPostData = saveOrgPostData.replaceAll("使用组织", Constants.ORG_NUMBER);
+								System.out.println("saveOrgPostData: " + saveOrgPostData);
+								String saveOrgPostDataResult = api.save("HR_ORG_HRPOST", saveOrgPostData);
+								System.out.println("saveOrgPostDataResult: " + saveOrgPostDataResult);
+								JSONObject postObject = JSONObject.parseObject(saveOrgPostDataResult);
+								JSONObject resultObject = (JSONObject) postObject.get("Result");
+								JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
+								if (responseStatus.getBoolean("IsSuccess")) {
+									// 请求成功
+									orgPostNumber = resultObject.getString("Number");
+									// 提交 & 审核
+									api.submit("HR_ORG_HRPOST", "{\"Numbers\":\"" + orgPostNumber + "\"}");
+									api.audit("HR_ORG_HRPOST", "{\"Numbers\":\"" + orgPostNumber + "\"}");
+								}
+							}
+
+							String staffSaveJson = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
 									"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
 									"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
 									"\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
 									"\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
-									"\"Model\":{\"FPOSTID\":0,\"FCreateOrgId\":{\"FNumber\":\"创建组织\"},\"FNumber\":\"\"," +
-									"\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FName\":\"名称\",\"FHelpCode\":\"\"," +
-									"\"FDept\":{\"FNumber\":\"所属部门\"},\"FEffectDate\":\"1900-01-01\"," +
-									"\"FLapseDate\":\"1900-01-01\",\"FDESCRIPTIONS\":\"\",\"FHRPostSubHead\":{\"FHRPOSTID\":0," +
-									"\"FLEADERPOST\":\"false\"},\"FSHRMapEntity\":{\"FMAPID\":0}," +
-									"\"FSubReportEntity\":[{\"FSubNumber\":\"\"}]}}";
-							saveOrgPostData = saveOrgPostData.replaceAll("所属部门", kingdeeDeptNumber);
-							saveOrgPostData = saveOrgPostData.replaceAll("名称", job_title);
-							saveOrgPostData = saveOrgPostData.replaceAll("创建组织", Constants.ORG_NUMBER);
-							saveOrgPostData = saveOrgPostData.replaceAll("使用组织", Constants.ORG_NUMBER);
-							System.out.println("saveOrgPostData: " + saveOrgPostData);
-							String saveOrgPostDataResult = api.save("HR_ORG_HRPOST", saveOrgPostData);
-							System.out.println("saveOrgPostDataResult: " + saveOrgPostDataResult);
-							JSONObject postObject = JSONObject.parseObject(saveOrgPostDataResult);
+									"\"Model\":{\"FID\":0,\"FName\":\"员工姓名\",\"FStaffNumber\":\"员工编号\",\"FMobile\":\"移动电话\",\"FTel\":\"\"," +
+									"\"FEmail\":\"\",\"FDescription\":\"\",\"FAddress\":\"\",\"FCreateOrgId\":{\"FNumber\":\"创建组织\"}," +
+									"\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FBranchID\":{\"FNUMBER\":\"\"},\"FCreateSaler\":\"false\"," +
+									"\"FCreateUser\":\"false\",\"FCreateCashier\":\"false\",\"FCashierGrp\":{\"FNUMBER\":\"\"}," +
+									"\"FUserId\":{\"FUSERACCOUNT\":\"\"},\"FCashierId\":{\"FNUMBER\":\"\"},\"FSalerId\":{\"FNUMBER\":\"\"}," +
+									"\"FPostId\":{\"FNUMBER\":\"\"},\"FJoinDate\":\"1900-01-01\",\"FUniportalNo\":\"\"," +
+									"\"FSHRMapEntity\":{\"FMAPID\":0},\"FPostEntity\":[{\"FENTRYID\":0,\"FWorkOrgId\":{\"FNumber\":\"工作组织\"}," +
+									"\"FPostDept\":{\"FNumber\":\"所属部门\"},\"FPost\":{\"FNumber\":\"就任岗位\"},\"FStaffStartDate\":\"任岗开始日期\"" +
+									",\"FIsFirstPost\":\"true\",\"FStaffDetails\":0,\"FOperatorType\":\"\"}]," +
+									"\"FBankInfo\":[{\"FBankId\":0,\"FBankCountry\":{\"FNumber\":\"\"},\"FBankCode\":\"\"," +
+									"\"FBankHolder\":\"\",\"FBankTypeRec\":{\"FNUMBER\":\"\"},\"FTextBankDetail\":\"\"," +
+									"\"FBankDetail\":{\"FNUMBER\":\"\"},\"FOpenBankName\":\"\",\"FOpenAddressRec\":\"\"," +
+									"\"FCNAPS\":\"\",\"FBankCurrencyId\":{\"FNUMBER\":\"\"},\"FBankIsDefault\":\"false\"," +
+									"\"FBankDesc\":\"\",\"FCertType\":\"\",\"FIsFromSHR\":\"false\",\"FCertNum\":\"\"}]}}";
+							staffSaveJson = staffSaveJson.replaceAll("员工姓名", name);
+							staffSaveJson = staffSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
+							staffSaveJson = staffSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
+							staffSaveJson = staffSaveJson.replaceAll("员工编号", employee_no);
+							staffSaveJson = staffSaveJson.replaceAll("所属部门", kingdeeDeptNumber);
+							staffSaveJson = staffSaveJson.replaceAll("就任岗位", orgPostNumber);
+							staffSaveJson = staffSaveJson.replaceAll("工作组织", Constants.ORG_NUMBER);
+							// 非必填
+							staffSaveJson = staffSaveJson.replaceAll("移动电话", StringUtil.mobileDivAreaCode(mobile));
+							staffSaveJson = staffSaveJson.replaceAll("任岗开始日期", TimeUtil.timestampToYMD(join_time));
+							String saveEmpinfoResult = api.save("BD_Empinfo", staffSaveJson);
+							System.out.println("staffSaveJson: " + staffSaveJson);
+							JSONObject postObject = JSONObject.parseObject(saveEmpinfoResult);
 							JSONObject resultObject = (JSONObject) postObject.get("Result");
 							JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
 							if (responseStatus.getBoolean("IsSuccess")) {
-								// 请求成功
-								orgPostNumber = resultObject.getString("Number");
+								User user = User.builder()
+										.fid(resultObject.getString("Id"))
+										.name(name)
+										.userId(user_id)
+										.deptId(deptId)
+										.build();
+								userMapper.insert(user);
+								log.info("saveEmpinfo success: {}", saveEmpinfoResult);
 								// 提交 & 审核
-								api.submit("HR_ORG_HRPOST", "{\"Numbers\":\"" + orgPostNumber + "\"}");
-								api.audit("HR_ORG_HRPOST", "{\"Numbers\":\"" + orgPostNumber + "\"}");
+								api.submit("BD_Empinfo", "{\"Numbers\":\"" + employee_no + "\"}");
+								api.audit("BD_Empinfo", "{\"Numbers\":\"" + employee_no + "\"}");
+							} else {
+								log.info("saveEmpinfo fail: {}", saveEmpinfoResult);
 							}
+						} catch (Exception e) {
+							e.printStackTrace();
 						}
-
-						String staffSaveJson = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
-								"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
-								"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
-								"\"IsAutoAdjustField\":\"false\",\"InterationFlags\":\"\",\"IgnoreInterationFlag\":\"\"," +
-								"\"IsControlPrecision\":\"false\",\"ValidateRepeatJson\":\"false\"," +
-								"\"Model\":{\"FID\":0,\"FName\":\"员工姓名\",\"FStaffNumber\":\"员工编号\",\"FMobile\":\"移动电话\",\"FTel\":\"\"," +
-								"\"FEmail\":\"\",\"FDescription\":\"\",\"FAddress\":\"\",\"FCreateOrgId\":{\"FNumber\":\"创建组织\"}," +
-								"\"FUseOrgId\":{\"FNumber\":\"使用组织\"},\"FBranchID\":{\"FNUMBER\":\"\"},\"FCreateSaler\":\"false\"," +
-								"\"FCreateUser\":\"false\",\"FCreateCashier\":\"false\",\"FCashierGrp\":{\"FNUMBER\":\"\"}," +
-								"\"FUserId\":{\"FUSERACCOUNT\":\"\"},\"FCashierId\":{\"FNUMBER\":\"\"},\"FSalerId\":{\"FNUMBER\":\"\"}," +
-								"\"FPostId\":{\"FNUMBER\":\"\"},\"FJoinDate\":\"1900-01-01\",\"FUniportalNo\":\"\"," +
-								"\"FSHRMapEntity\":{\"FMAPID\":0},\"FPostEntity\":[{\"FENTRYID\":0,\"FWorkOrgId\":{\"FNumber\":\"工作组织\"}," +
-								"\"FPostDept\":{\"FNumber\":\"所属部门\"},\"FPost\":{\"FNumber\":\"就任岗位\"},\"FStaffStartDate\":\"任岗开始日期\"" +
-								",\"FIsFirstPost\":\"true\",\"FStaffDetails\":0,\"FOperatorType\":\"\"}]," +
-								"\"FBankInfo\":[{\"FBankId\":0,\"FBankCountry\":{\"FNumber\":\"\"},\"FBankCode\":\"\"," +
-								"\"FBankHolder\":\"\",\"FBankTypeRec\":{\"FNUMBER\":\"\"},\"FTextBankDetail\":\"\"," +
-								"\"FBankDetail\":{\"FNUMBER\":\"\"},\"FOpenBankName\":\"\",\"FOpenAddressRec\":\"\"," +
-								"\"FCNAPS\":\"\",\"FBankCurrencyId\":{\"FNUMBER\":\"\"},\"FBankIsDefault\":\"false\"," +
-								"\"FBankDesc\":\"\",\"FCertType\":\"\",\"FIsFromSHR\":\"false\",\"FCertNum\":\"\"}]}}";
-						staffSaveJson = staffSaveJson.replaceAll("员工姓名", name);
-						staffSaveJson = staffSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
-						staffSaveJson = staffSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
-						staffSaveJson = staffSaveJson.replaceAll("员工编号", employee_no);
-						staffSaveJson = staffSaveJson.replaceAll("所属部门", kingdeeDeptNumber);
-						staffSaveJson = staffSaveJson.replaceAll("就任岗位", orgPostNumber);
-						staffSaveJson = staffSaveJson.replaceAll("工作组织", Constants.ORG_NUMBER);
-                        // 非必填
-                        staffSaveJson = staffSaveJson.replaceAll("移动电话", StringUtil.mobileDivAreaCode(mobile));
-                        staffSaveJson = staffSaveJson.replaceAll("任岗开始日期", TimeUtil.timestampToYMD(join_time));
-                        String saveEmpinfoResult = api.save("BD_Empinfo", staffSaveJson);
-						System.out.println("staffSaveJson: " + staffSaveJson);
-                        JSONObject postObject = JSONObject.parseObject(saveEmpinfoResult);
-                        JSONObject resultObject = (JSONObject) postObject.get("Result");
-                        JSONObject responseStatus = (JSONObject) resultObject.get("ResponseStatus");
-                        if (responseStatus.getBoolean("IsSuccess")) {
-							User user = User.builder()
-									.fid(resultObject.getString("Id"))
-									.name(name)
-									.userId(user_id)
-									.deptId(deptId)
-									.build();
-							userMapper.insert(user);
-                            log.info("saveEmpinfo success: {}", saveEmpinfoResult);
-							// 提交 & 审核
-							api.submit("BD_Empinfo", "{\"Numbers\":\"" + employee_no + "\"}");
-							api.audit("BD_Empinfo", "{\"Numbers\":\"" + employee_no + "\"}");
-                        } else {
-                            log.info("saveEmpinfo fail: {}", saveEmpinfoResult);
-                        }
-                    } catch (Exception e) {
-						e.printStackTrace();
 					}
                 }
             }).onP2UserUpdatedV3(new ContactService.P2UserUpdatedV3Handler() {
@@ -773,30 +778,40 @@ public class EventController {
 
 //						String deptDeleteJson = "{\"data\":\"{\"FormId\":\"HR_ORG_HRPOST\",\"FieldKeys\":\"FPOSTID\",\"FilterString\":\"FDept='" + department.getKingdeeDeptId() + "'\",\"OrderString\":\"\",\"TopRowCount\":0,\"StartRow\":0,\"Limit\":2000,\"SubSystemId\":\"\"}\"}";
 						String text = "{\"FormId\":\"HR_ORG_HRPOST\",\"FieldKeys\":\"FPOSTID\",\"FilterString\":\"FDept='" + department.getKingdeeDeptId() + "'\",\"OrderString\":\"\",\"TopRowCount\":0,\"StartRow\":0,\"Limit\":2000,\"SubSystemId\":\"\"}";
-						final  K3CloudApi api = new K3CloudApi();
+
 						String unAuditEmpinfoResult = api.executeBillQueryJson(text);
 						JSONArray jsonArray = JSONArray.parseArray(unAuditEmpinfoResult);
 						//部门下的岗位
-						for (int i = 0; i<jsonArray.size(); i++) {
-							Object FPost = jsonArray.get(i);
-							String stationReplace = FPost.toString().replace("[", "").replace("]", "");
-							String empinfo = "{\"FormId\":\"BD_Empinfo\",\"FieldKeys\":\"FID\",\"FilterString\":\"FPost='" + stationReplace + "'\",\"OrderString\":\"\",\"TopRowCount\":0,\"StartRow\":0,\"Limit\":2000,\"SubSystemId\":\"\"}";
-							String json = api.executeBillQueryJson(empinfo);
-							//用户
-							JSONArray userJson = JSONArray.parseArray(json);
-							//岗位任职人员
-							for (int n = 0 ; n<userJson.size();n++ ) {
-								String userReplace = userJson.get(n).toString().replace("[", "").replace("]", "");
-								//反审核用户
-								String bdEmpinfo = api.unAudit("BD_Empinfo", "{\"Ids\":\"" + userReplace + "\"}");
-								//禁用用户
-								String forbidEmpinfoResult = api.excuteOperation("BD_Empinfo", "Forbid", "{\"Ids\":\"" + userReplace + "\"}");
-							}
-							//反审核岗位
-							String unAuditempinfo = api.unAudit("HR_ORG_HRPOST", "{\"Ids\":\"" + stationReplace + "\"}");
-							//禁用岗位
-							String unAuditStationResult = api.excuteOperation("HR_ORG_HRPOST", "Forbid", "{\"Ids\":\"" + stationReplace + "\"}");
-						}
+						String stationReplace = jsonArray.get(0).toString().replace("[", "").replace("]", "");
+//							String empinfo = "{\"FormId\":\"BD_Empinfo\",\"FieldKeys\":\"FID\",\"FilterString\":\"FPost='" + stationReplace + "'\",\"OrderString\":\"\",\"TopRowCount\":0,\"StartRow\":0,\"Limit\":2000,\"SubSystemId\":\"\"}";
+//							String json = api.executeBillQueryJson(empinfo);
+//							JSONArray userJson = JSONArray.parseArray(json);
+						//岗位任职人员
+//							for (int n = 0; n < userJson.size(); n++) {
+//								String userReplace = userJson.get(n).toString().replace("[", "").replace("]", "");
+////								//反审核用户
+////								String bdEmpinfo = api.unAudit("BD_Empinfo", "{\"Ids\":\"" + userReplace + "\"}");
+////								//禁用用户
+////								String forbidEmpinfoResult = api.excuteOperation("BD_Empinfo", "Forbid", "{\"Ids\":\"" + userReplace + "\"}");
+//							}
+						// 根据部门找到任岗明细列表禁用
+						String findNewstaffListByHrPost = "{\"FormId\":\"BD_NEWSTAFF\",\"FieldKeys\":\"FSTAFFID\",\"FilterString\":\"FDept='" + department.getKingdeeDeptId() + "'\",\"OrderString\":\"\",\"TopRowCount\":0,\"StartRow\":0,\"Limit\":2000,\"SubSystemId\":\"\"}";
+						String newstaffListByHrPostResult = api.executeBillQueryJson(findNewstaffListByHrPost);
+						JSONArray newstaffListByHrPostArray = JSONArray.parseArray(newstaffListByHrPostResult);
+						String newstaffListByHrPostStationReplace = newstaffListByHrPostArray.get(0).toString().replaceAll("\\[", "").replaceAll("\\]", "");
+						System.out.println("newstaffListByHrPostStationReplace: " + newstaffListByHrPostStationReplace);
+						//反审核&禁用 任岗明细
+						String unAuditNewstaffResult = api.unAudit("BD_NEWSTAFF", "{\"Ids\":\"" + newstaffListByHrPostStationReplace + "\"}");
+						String forbidNewstaffResult = api.excuteOperation("BD_NEWSTAFF", "Forbid", "{\"Ids\":\"" + newstaffListByHrPostStationReplace + "\"}");
+						System.out.println("unAuditNewstaffResult: " + unAuditNewstaffResult);
+						System.out.println("forbidNewstaffResult: " + forbidNewstaffResult);
+
+						//反审核&禁用 岗位
+						String unAuditHrPostResult = api.unAudit("HR_ORG_HRPOST", "{\"Ids\":\"" + stationReplace + "\"}");
+						String forbidHrPostResult = api.excuteOperation("HR_ORG_HRPOST", "Forbid", "{\"Ids\":\"" + stationReplace + "\"}");
+						System.out.println("unAuditHrPostResult: " + unAuditHrPostResult);
+						System.out.println("forbidHrPostResult: " + forbidHrPostResult);
+
 						//反审核部门
 						String unDepartment = api.unAudit("BD_Department", "{\"Ids\":\"" + department.getKingdeeDeptId() + "\"}");
 						JSONObject unAuditEmpinfoObject = JSONObject.parseObject(unDepartment);

@@ -1,5 +1,6 @@
 package com.lundong.metabitorgsync.controller;
 
+import com.lundong.metabitorgsync.service.DeptService;
 import com.lundong.metabitorgsync.service.SystemService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +13,9 @@ public class SystemController {
 
     @Autowired
     private SystemService systemService;
+
+    @Autowired
+    private DeptService deptService;
 
     /**
      * 初始化部门
@@ -31,5 +35,15 @@ public class SystemController {
     @GetMapping("/init/user")
     public String initUser() {
         return systemService.initUser();
+    }
+
+    /**
+     * 初始化用户
+     *
+     * @return
+     */
+    @GetMapping("/syncStopDeptData")
+    public void syncStopDeptData() {
+        deptService.syncStopDeptData();
     }
 }
