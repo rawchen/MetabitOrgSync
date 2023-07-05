@@ -183,11 +183,15 @@ public class SystemServiceImpl implements SystemService {
 
 			// Kingdee系统对应的人匹配
 			for (KingdeeUser kingdeeUser : kingdeeUsers) {
-				if (feishuUser.getName().equals(kingdeeUser.getName())) {
+				// 通过工号匹配，而不是通过名称匹配
+				if (feishuUser.getEmployeeNo().equals(kingdeeUser.getNumber())) {
 					user.setStaffId(kingdeeUser.getStaffId());
 					user.setFid(kingdeeUser.getFid());
+					user.setName(kingdeeUser.getName());
 					break;
 				}
+//				if (feishuUser.getName().equals(kingdeeUser.getName())) {
+//				}
 			}
 			users.add(user);
 		}

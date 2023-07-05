@@ -121,7 +121,7 @@ class MetabitOrgSyncApplicationTests {
 
 	@Test
 	void testCorehrDepartmentData() {
-		System.out.println(SignUtil.corehrDepartmentData("7199920317373005852"));
+		System.out.println(SignUtil.corehrDepartmentData("7ae8e9be465138ba"));
 	}
 
 	@Test
@@ -213,6 +213,19 @@ class MetabitOrgSyncApplicationTests {
 			System.out.println(department);
 		}
 		System.out.println(corehrDepartmentIsActive.size());
+	}
+
+	@Test
+	void testQueryUserList() {
+		List<KingdeeUser> kingdeeUsers = userService.queryUserList();
+		for (KingdeeUser kingdeeUser : kingdeeUsers) {
+			System.out.println(kingdeeUser);
+		}
+	}
+
+	@Test
+	void testGetLegalNameByEmployeeNumber() {
+		System.out.println(SignUtil.getLegalNameByEmployeeNumber("M0081"));
 	}
 
 }

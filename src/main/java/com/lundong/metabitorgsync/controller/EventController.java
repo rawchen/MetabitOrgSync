@@ -137,7 +137,7 @@ public class EventController {
 //                    String gender = object.getString("gender");
 //                    String city = object.getString("city");
                     Integer employee_type = object.getInteger("employee_type");
-					System.out.println("employee_type: " + employee_type);
+//					System.out.println("employee_type: " + employee_type);
 					// 排除外包
 					if (employee_type != 3) {
 //                    String nickname = object.getString("nickname");
@@ -219,6 +219,9 @@ public class EventController {
 								}
 							}
 
+							// 获取法定姓名，通过搜索员工信息的employee_no查询
+							String legalName = SignUtil.getLegalNameByEmployeeNumber(employee_no);
+
 							String staffSaveJson = "{\"NeedUpDateFields\":[],\"NeedReturnFields\":[]," +
 									"\"IsDeleteEntry\":\"true\",\"SubSystemId\":\"\",\"IsVerifyBaseDataField\":\"false\"," +
 									"\"IsEntryBatchFill\":\"true\",\"ValidateFlag\":\"true\",\"NumberSearch\":\"true\"," +
@@ -238,7 +241,7 @@ public class EventController {
 									"\"FBankDetail\":{\"FNUMBER\":\"\"},\"FOpenBankName\":\"\",\"FOpenAddressRec\":\"\"," +
 									"\"FCNAPS\":\"\",\"FBankCurrencyId\":{\"FNUMBER\":\"\"},\"FBankIsDefault\":\"false\"," +
 									"\"FBankDesc\":\"\",\"FCertType\":\"\",\"FIsFromSHR\":\"false\",\"FCertNum\":\"\"}]}}";
-							staffSaveJson = staffSaveJson.replaceAll("员工姓名", name);
+							staffSaveJson = staffSaveJson.replaceAll("员工姓名", legalName);
 							staffSaveJson = staffSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
 							staffSaveJson = staffSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
 							staffSaveJson = staffSaveJson.replaceAll("员工编号", employee_no);
@@ -391,7 +394,7 @@ public class EventController {
 								"\"FCNAPS\":\"\",\"FBankCurrencyId\":{\"FNUMBER\":\"\"},\"FBankIsDefault\":\"false\"," +
 								"\"FBankDesc\":\"\",\"FCertType\":\"\",\"FIsFromSHR\":\"false\",\"FCertNum\":\"\"}]}}";
 						staffSaveJson = staffSaveJson.replaceAll("实体主键", fid);
-						staffSaveJson = staffSaveJson.replaceAll("员工姓名", name);
+						staffSaveJson = staffSaveJson.replaceAll("员工姓名", user.getName());
 						staffSaveJson = staffSaveJson.replaceAll("创建组织", Constants.ORG_NUMBER);
 						staffSaveJson = staffSaveJson.replaceAll("使用组织", Constants.ORG_NUMBER);
 						staffSaveJson = staffSaveJson.replaceAll("员工编号", employee_no);

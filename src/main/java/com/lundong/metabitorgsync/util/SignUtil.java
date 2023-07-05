@@ -14,10 +14,7 @@ import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.net.HttpCookie;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -388,17 +385,24 @@ public class SignUtil {
 	 */
 	public static List<FeishuUser> findEmployees(String accessToken) {
 		List<FeishuUser> users = new ArrayList<>();
-		Map<String, Object> param = new HashMap<>();
+//		Map<String, Object> param = new HashMap<>();
+		String pageToken = "";
 		while (true) {
-			param.put("view", "full");
-			param.put("user_id_type", "user_id");
-			param.put("page_size", 100);
-			String resultStr = HttpRequest.get("https://open.feishu.cn/open-apis/ehr/v1/employees")
+//			param.put("view", "full");
+//			param.put("status", "2");
+//			param.put("status", "4");
+//			param.put("user_id_type", "user_id");
+//			param.put("page_size", 100);
+			String resultStr = HttpRequest.get("https://open.feishu.cn/open-apis/ehr/v1/employees?page_size=100&status=2&status=4&user_id_type=user_id&view=full" + (!StringUtil.isEmpty(pageToken)?"&page_token=":"") + pageToken)
 					.header("Authorization", "Bearer " + accessToken)
-					.form(param)
+//					.form(param)
 					.execute()
 					.body();
 			JSONObject jsonObject = JSON.parseObject(resultStr);
+			if (!"0".equals(jsonObject.getString("code"))) {
+				return Collections.emptyList();
+			}
+
 			JSONObject data = (JSONObject) jsonObject.get("data");
 			JSONArray items = (JSONArray) data.get("items");
 			for (int i = 0; i < items.size(); i++) {
@@ -411,7 +415,8 @@ public class SignUtil {
 				users.add(feishuUser);
 			}
 			if ((boolean) data.get("has_more")) {
-				param.put("page_token", data.getString("page_token"));
+//				param.put("page_token", data.getString("page_token"));
+				pageToken = data.getString("page_token");
 			} else {
 				break;
 			}
@@ -505,7 +510,7 @@ public class SignUtil {
 
 //			JSONObject object = new JSONObject();
 //			object.put("employment_ids", new JSONArray().add(employmentId));
-			String resultStr = HttpRequest.post("https://open.feishu.cn/open-apis/corehr/v1/offboardings/search?page_size=100&user_id_type=people_corehr_id&pageToken=" + pageToken)
+			String resultStr = HttpRequest.post("https://open.feishu.cn/open-apis/corehr/v1/offboardings/search?page_size=100&user_id_type=people_corehr_id&page_token=" + pageToken)
 					.header("Authorization", "Bearer " + accessToken)
 					.form(param)
 					.body("{\"employment_ids\":[\"" + employmentId + "\"]}")
@@ -601,5 +606,58 @@ public class SignUtil {
 	public static List<CorehrDepartment> findCorehrDepartmentIsActive() {
 		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
 		return findCorehrDepartmentIsActive(accessToken);
+	}
+
+	/**
+	 *  通过员工号获取员工法定姓名
+	 *
+	 * @param accessToken
+	 * @param employeeNo
+	 * @return
+	 */
+	public static String getLegalNameByEmployeeNumber(String accessToken, String employeeNo) {
+		if (employeeNo == null || "".equals(employeeNo)) {
+			return "";
+		}
+		JSONObject bodyObject = new JSONObject();
+		JSONArray arrayFields = new JSONArray();
+		arrayFields.add("person_info.legal_name");
+		JSONArray arrayEmployeeNumberList = new JSONArray();
+		arrayEmployeeNumberList.add(employeeNo);
+		bodyObject.put("fields", arrayFields);
+		bodyObject.put("employee_number_list", arrayEmployeeNumberList);
+
+		String resultStr = HttpRequest.post("https://open.feishu.cn/open-apis/corehr/v2/employees/search?department_id_type=department_id&page_size=100&user_id_type=user_id")
+				.header("Authorization", "Bearer " + accessToken)
+				.body(bodyObject.toJSONString())
+				.execute()
+				.body();
+		System.out.println(resultStr);
+		if (StringUtils.isNotEmpty(resultStr)) {
+			JSONObject resultObject = (JSONObject) JSON.parse(resultStr);
+			if (!"0".equals(resultObject.getString("code"))) {
+				return "";
+			} else {
+				JSONObject data = (JSONObject) resultObject.get("data");
+				JSONArray items = (JSONArray) data.get("items");
+				if (items.size() > 0) {
+					// 取第一个匹配出来的
+					JSONObject employment = items.getJSONObject(0);
+					return employment.getJSONObject("person_info").getString("legal_name");
+				}
+			}
+		}
+		return "";
+	}
+
+	/**
+	 * 通过员工号获取员工法定姓名
+	 *
+	 * @param employeeNo
+	 * @return
+	 */
+	public static String getLegalNameByEmployeeNumber(String employeeNo) {
+		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
+		return getLegalNameByEmployeeNumber(accessToken, employeeNo);
 	}
 }
