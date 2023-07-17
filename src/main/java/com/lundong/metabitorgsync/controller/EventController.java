@@ -87,7 +87,7 @@ public class EventController {
 //						return;
 //					}
 //
-//					// TODO 根据离职状态变更的 process_id
+//					// 根据离职状态变更的 process_id
 //					// 调用搜索离职信息
 //					// offboarding_checklist -> checklist_status == Finished 完成办理
 //					// 如果该事件雇员查询到离职审批为完成办理，就执行
@@ -259,7 +259,7 @@ public class EventController {
 							if (responseStatus.getBoolean("IsSuccess")) {
 								User user = User.builder()
 										.fid(resultObject.getString("Id"))
-										.name(name)
+										.name(legalName)
 										.userId(user_id)
 										.deptId(deptId)
 										.build();
@@ -414,7 +414,7 @@ public class EventController {
 							User userTemp = User.builder()
 									.id(user.getId())
 									.fid(fid)
-									.name(name)
+									.name(user.getName())
 									.deptId(deptId)
 									.build();
 							userMapper.updateById(userTemp);

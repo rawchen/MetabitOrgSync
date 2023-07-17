@@ -10,7 +10,6 @@ import com.lundong.metabitorgsync.mapper.UserMapper;
 import com.lundong.metabitorgsync.service.DeptService;
 import com.lundong.metabitorgsync.service.UserService;
 import com.lundong.metabitorgsync.service.impl.DeptServiceImpl;
-import com.lundong.metabitorgsync.service.impl.UserServiceImpl;
 import com.lundong.metabitorgsync.util.SignUtil;
 import com.lundong.metabitorgsync.util.TimeUtil;
 import org.junit.jupiter.api.Test;
@@ -38,14 +37,22 @@ class MetabitOrgSyncApplicationTests {
 	void getParentId() {
 		String accessToken = SignUtil.getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
 
-		String result = SignUtil.getDepartmentIdAndName(accessToken, "od-b66de0fbb2edb71b7f5b020d675a3e04");
-		System.out.println(result);
+		String result01 = SignUtil.getDepartmentIdAndName(accessToken, "od-f895a2b15179fdb6db220a38452b4ef3");
+		String result02 = SignUtil.getDepartmentIdAndName(accessToken, "od-0ff39827d4a2c08d55c17f5968df8871");
+		String result03 = SignUtil.getDepartmentIdAndName(accessToken, "od-26723a79d2feb207a6b9d78b5709b660");
+		String result04 = SignUtil.getDepartmentIdAndName(accessToken, "od-b30608ffa80e101dd165c04cedbd6d31");
+		String result05 = SignUtil.getDepartmentIdAndName(accessToken, "od-f378fa5897d077c1e2d7cf945e31eb1e");
+		System.out.println(result01);
+		System.out.println(result02);
+		System.out.println(result03);
+		System.out.println(result04);
+		System.out.println(result05);
 
-		UserService userService = new UserServiceImpl();
-		List<KingdeeUser> kingdeeUsers = userService.queryUserList();
-		for (KingdeeUser kingdeeUser : kingdeeUsers) {
-			System.out.println(kingdeeUser);
-		}
+//		UserService userService = new UserServiceImpl();
+//		List<KingdeeUser> kingdeeUsers = userService.queryUserList();
+//		for (KingdeeUser kingdeeUser : kingdeeUsers) {
+//			System.out.println(kingdeeUser);
+//		}
 	}
 
 	@Test
@@ -226,6 +233,11 @@ class MetabitOrgSyncApplicationTests {
 	@Test
 	void testGetLegalNameByEmployeeNumber() {
 		System.out.println(SignUtil.getLegalNameByEmployeeNumber("M0081"));
+	}
+
+	@Test
+	void testGetOutboundIps() {
+		SignUtil.getOutboundIps();
 	}
 
 }

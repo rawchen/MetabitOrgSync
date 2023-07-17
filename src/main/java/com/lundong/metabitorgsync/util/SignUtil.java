@@ -660,4 +660,33 @@ public class SignUtil {
 		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
 		return getLegalNameByEmployeeNumber(accessToken, employeeNo);
 	}
+
+	/**
+	 * 查询事件订阅出口ip列表
+	 *
+	 * @param accessToken
+	 * @param employmentId
+	 * @return
+	 */
+	public static void getOutboundIps() {
+		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
+
+		String resultStr = HttpRequest.get(
+						"https://open.feishu.cn/open-apis/event/v1/outbound_ip?page_size=50")
+				.header("Authorization", "Bearer " + accessToken)
+				.execute().body();
+		System.out.println(resultStr);
+		if (StringUtils.isNotEmpty(resultStr)) {
+			JSONObject resultObject = (JSONObject) JSON.parse(resultStr);
+			if ("0".equals(resultObject.getString("code"))) {
+				JSONObject data = (JSONObject) resultObject.get("data");
+				JSONArray department = data.getJSONArray("ip_list");
+				for (int i = 0; i < department.size(); i++) {
+					System.out.println(department.get(i).toString());
+				}
+			}
+		}
+	}
+
+
 }
