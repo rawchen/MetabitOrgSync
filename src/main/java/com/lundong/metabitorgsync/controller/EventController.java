@@ -118,8 +118,8 @@ public class EventController {
             .onP2UserCreatedV3(new ContactService.P2UserCreatedV3Handler() {
                 // 用户创建
                 @Override
-                public void handle(P2UserCreatedV3 event) {
-					new Thread(() -> {
+                public void handle(P2UserCreatedV3 event) throws Exception {
+	                Runnable worker = () -> {
 						log.info("P2UserCreatedV3: {}", Jsons.DEFAULT.toJson(event));
 						// 处理用户创建事件
 						// 1.获取处理订阅消息体
@@ -276,13 +276,14 @@ public class EventController {
 								e.printStackTrace();
 							}
 						}
-					}).start();
+					};
+	                Constants.queue.submitTask(worker);
                 }
             }).onP2UserUpdatedV3(new ContactService.P2UserUpdatedV3Handler() {
                 // 用户修改
                 @Override
                 public void handle(P2UserUpdatedV3 event) throws Exception {
-					new Thread(() -> {
+	                Runnable worker = () -> {
 						log.info("P2UserUpdatedV3: {}", Jsons.DEFAULT.toJson(event));
 						String resultJson = Jsons.DEFAULT.toJson(event);
 						JSONObject eventsObject = (JSONObject) JSONObject.parse(resultJson);
@@ -515,13 +516,14 @@ public class EventController {
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
-					}).start();
+					};
+	                Constants.queue.submitTask(worker);
                 }
             }).onP2UserDeletedV3(new ContactService.P2UserDeletedV3Handler() {
                 // 用户删除
                 @Override
                 public void handle(P2UserDeletedV3 event) throws Exception {
-					new Thread(() -> {
+	                Runnable worker = () -> {
 						log.info("P2UserDeletedV3: {}", Jsons.DEFAULT.toJson(event));
 						String resultJson = Jsons.DEFAULT.toJson(event);
 						JSONObject eventsObject = (JSONObject) JSONObject.parse(resultJson);
@@ -556,13 +558,14 @@ public class EventController {
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
-					}).start();
+					};
+	                Constants.queue.submitTask(worker);
                 }
             }).onP2DepartmentCreatedV3(new ContactService.P2DepartmentCreatedV3Handler() {
                 // 部门创建
                 @Override
                 public void handle(P2DepartmentCreatedV3 event) throws Exception {
-					new Thread(() -> {
+	                Runnable worker = () -> {
 						log.info("P2DepartmentCreatedV3: {}", Jsons.DEFAULT.toJson(event));
 						String resultJson = Jsons.DEFAULT.toJson(event);
 						JSONObject eventsObject = (JSONObject) JSONObject.parse(resultJson);
@@ -656,13 +659,14 @@ public class EventController {
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
-					}).start();
+					};
+	                Constants.queue.submitTask(worker);
                 }
             }).onP2DepartmentUpdatedV3(new ContactService.P2DepartmentUpdatedV3Handler() {
                 // 部门修改
                 @Override
                 public void handle(P2DepartmentUpdatedV3 event) throws Exception {
-					new Thread(() -> {
+	                Runnable worker = () -> {
 						log.info("P2DepartmentUpdatedV3: {}", Jsons.DEFAULT.toJson(event));
 						String resultJson = Jsons.DEFAULT.toJson(event);
 						JSONObject eventsObject = (JSONObject) JSONObject.parse(resultJson);
@@ -748,13 +752,14 @@ public class EventController {
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
-					}).start();
+					};
+	                Constants.queue.submitTask(worker);
                 }
             }).onP2DepartmentDeletedV3(new ContactService.P2DepartmentDeletedV3Handler() {
                 // 部门删除
                 @Override
                 public void handle(P2DepartmentDeletedV3 event) throws Exception {
-					new Thread(() -> {
+	                Runnable worker = () -> {
 						log.info("P2DepartmentDeletedV3: {}", Jsons.DEFAULT.toJson(event));
 						String resultJson = Jsons.DEFAULT.toJson(event);
 						JSONObject eventsObject = (JSONObject) JSONObject.parse(resultJson);
@@ -849,7 +854,8 @@ public class EventController {
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
-					}).start();
+					};
+	                Constants.queue.submitTask(worker);
                 }
             })
             .build();

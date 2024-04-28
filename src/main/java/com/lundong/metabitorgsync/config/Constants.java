@@ -6,6 +6,10 @@ package com.lundong.metabitorgsync.config;
  */
 public class Constants {
 
+	public static TaskQueueExample queue = new TaskQueueExample(1000);
+
+	public static String ACCESS_TOKEN = "";
+
 	// 飞书自建应用 App ID
 	public final static String APP_ID_FEISHU = "cli_a4exxxxxxxxxxxxx";
 

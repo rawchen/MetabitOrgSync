@@ -10,6 +10,7 @@ import com.lundong.metabitorgsync.entity.CorehrDepartment;
 import com.lundong.metabitorgsync.entity.FeishuDept;
 import com.lundong.metabitorgsync.entity.FeishuOffboarding;
 import com.lundong.metabitorgsync.entity.FeishuUser;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -21,32 +22,8 @@ import java.util.stream.Collectors;
  * @author RawChen
  * @date 2023-03-08 18:37
  */
+@Slf4j
 public class SignUtil {
-
-	/**
-	 * 飞书自建应用获取tenant_access_token
-	 */
-	public static String getAccessToken(String appId, String appSecret) {
-		JSONObject object = new JSONObject();
-		object.put("app_id", appId);
-		object.put("app_secret", appSecret);
-		String resultStr = HttpRequest.post("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal")
-				.form(object)
-				.timeout(2000)
-				.execute().body();
-		if (StringUtils.isNotEmpty(resultStr)) {
-			JSONObject resultObject = (JSONObject) JSON.parse(resultStr);
-			if (!"0".equals(resultObject.getString("code"))) {
-				return "";
-			} else {
-				String tenantAccessToken = resultObject.getString("tenant_access_token");
-				if (tenantAccessToken != null) {
-					return tenantAccessToken;
-				}
-			}
-		}
-		return "";
-	}
 
 	/**
 	 * 查询雇佣信息
@@ -146,8 +123,7 @@ public class SignUtil {
 		if (StringUtil.isEmpty(openDepartmentId) || "0".equals(openDepartmentId)) {
 			return "0";
 		} else {
-			String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
-			return getDepartmentIdAndName(accessToken, openDepartmentId);
+			return getDepartmentIdAndName(Constants.ACCESS_TOKEN, openDepartmentId);
 		}
 	}
 
@@ -158,8 +134,7 @@ public class SignUtil {
 	 * @return
 	 */
 	public static List<String> batchInsertRecord(String json, String appToken, String tableId, String name) {
-		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
-		return batchInsertRecord(accessToken, json, appToken, tableId, name);
+		return batchInsertRecord(Constants.ACCESS_TOKEN, json, appToken, tableId, name);
 	}
 
 	/**
@@ -207,8 +182,7 @@ public class SignUtil {
 	 * @param tableId
 	 */
 	public static void batchClearTable(List<String> recordIds, String appToken, String tableId) {
-		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
-		batchClearTable(accessToken, recordIds, appToken, tableId);
+		batchClearTable(Constants.ACCESS_TOKEN, recordIds, appToken, tableId);
 	}
 
 	/**
@@ -253,8 +227,7 @@ public class SignUtil {
 	 * @return
 	 */
 	public static List<FeishuUser> findByDepartment() {
-		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
-		return findByDepartment(accessToken);
+		return findByDepartment(Constants.ACCESS_TOKEN);
 	}
 
 	/**
@@ -305,8 +278,7 @@ public class SignUtil {
 	 * @return
 	 */
 	public static List<FeishuDept> departments() {
-		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
-		return departments(accessToken);
+		return departments(Constants.ACCESS_TOKEN);
 	}
 
 	/**
@@ -373,8 +345,7 @@ public class SignUtil {
 	 * @return
 	 */
 	public static List<FeishuUser> findEmployees() {
-		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
-		return findEmployees(accessToken);
+		return findEmployees(Constants.ACCESS_TOKEN);
 	}
 
 	/**
@@ -436,7 +407,6 @@ public class SignUtil {
 						"https://open.feishu.cn/open-apis/corehr/v1/departments/"
 								+ departmentId
 								+ "?department_id_type=department_id&user_id_type=user_id")
-				.timeout(2000)
 				.header("Authorization", "Bearer " + accessToken)
 				.execute()
 				.body();
@@ -465,8 +435,7 @@ public class SignUtil {
 	 * @return
 	 */
 	public static String corehrDepartment(String departmentId) {
-		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
-		return corehrDepartment(accessToken, departmentId);
+		return corehrDepartment(Constants.ACCESS_TOKEN, departmentId);
 	}
 
 	/**
@@ -475,13 +444,11 @@ public class SignUtil {
 	 * @return
 	 */
 	public static String corehrDepartmentData(String departmentId) {
-		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
 		String resultStr = HttpRequest.get(
 						"https://open.feishu.cn/open-apis/corehr/v1/departments/"
 								+ departmentId
 								+ "?department_id_type=department_id&user_id_type=user_id")
-				.timeout(2000)
-				.header("Authorization", "Bearer " + accessToken)
+				.header("Authorization", "Bearer " + Constants.ACCESS_TOKEN)
 				.execute()
 				.body();
 		if (StringUtils.isNotEmpty(resultStr)) {
@@ -555,8 +522,7 @@ public class SignUtil {
 	 * @param employmentId
 	 */
 	public static boolean corehrOffboardingsSearch(String employmentId) {
-		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
-		return corehrOffboardingsSearch(accessToken, employmentId);
+		return corehrOffboardingsSearch(Constants.ACCESS_TOKEN, employmentId);
 	}
 
 	/**
@@ -604,8 +570,7 @@ public class SignUtil {
 	 * @return
 	 */
 	public static List<CorehrDepartment> findCorehrDepartmentIsActive() {
-		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
-		return findCorehrDepartmentIsActive(accessToken);
+		return findCorehrDepartmentIsActive(Constants.ACCESS_TOKEN);
 	}
 
 	/**
@@ -657,23 +622,18 @@ public class SignUtil {
 	 * @return
 	 */
 	public static String getLegalNameByEmployeeNumber(String employeeNo) {
-		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
-		return getLegalNameByEmployeeNumber(accessToken, employeeNo);
+		return getLegalNameByEmployeeNumber(Constants.ACCESS_TOKEN, employeeNo);
 	}
 
 	/**
 	 * 查询事件订阅出口ip列表
 	 *
-	 * @param accessToken
-	 * @param employmentId
 	 * @return
 	 */
 	public static void getOutboundIps() {
-		String accessToken = getAccessToken(Constants.APP_ID_FEISHU, Constants.APP_SECRET_FEISHU);
-
 		String resultStr = HttpRequest.get(
 						"https://open.feishu.cn/open-apis/event/v1/outbound_ip?page_size=50")
-				.header("Authorization", "Bearer " + accessToken)
+				.header("Authorization", "Bearer " + Constants.ACCESS_TOKEN)
 				.execute().body();
 		System.out.println(resultStr);
 		if (StringUtils.isNotEmpty(resultStr)) {
@@ -689,4 +649,60 @@ public class SignUtil {
 	}
 
 
+	/**
+	 * 飞书自建应用获取tenant_access_token
+	 */
+	public static String getAccessToken(String appId, String appSecret) {
+
+//        if (!StrUtil.isEmpty(Constants.ACCESS_TOKEN)) {
+//            return Constants.ACCESS_TOKEN;
+//        }
+		JSONObject object = new JSONObject();
+		object.put("app_id", appId);
+		object.put("app_secret", appSecret);
+		String resultStr = "";
+		JSONObject resultObject = null;
+		for (int i = 0; i < 3; i++) {
+			try {
+				HttpResponse execute = HttpRequest.post("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal")
+						.form(object)
+						.execute();
+				resultStr = execute.body();
+				execute.close();
+				if (StringUtils.isNotEmpty(resultStr)) {
+					resultObject = JSON.parseObject(resultStr);
+					if (resultObject.getInteger("code") != 0) {
+						log.error("获取tenant_access_token失败，重试 {} 次, body: {}", i + 1, resultStr);
+						try {
+							Thread.sleep(2000);
+						} catch (InterruptedException ecp) {
+							log.error("sleep异常", ecp);
+						}
+					}
+				}
+			} catch (Exception e) {
+				log.error("获取tenant_access_token异常，重试 {} 次, message: {}, body: {}", i + 1, e.getMessage(), resultStr);
+				try {
+					Thread.sleep(2000);
+				} catch (InterruptedException ecp) {
+					log.error("sleep异常", ecp);
+				}
+			}
+			if (resultObject != null && resultObject.getInteger("code") == 0) {
+				break;
+			}
+		}
+		// 重试完检测
+		if (resultObject == null || resultObject.getInteger("code") != 0) {
+			log.error("重试3次获取tenant_access_token后都失败");
+			return "";
+		} else {
+			String tenantAccessToken = resultObject.getString("tenant_access_token");
+			if (tenantAccessToken != null) {
+				return tenantAccessToken;
+			}
+		}
+		log.error("access_token获取不成功: {}", resultStr);
+		return "";
+	}
 }
