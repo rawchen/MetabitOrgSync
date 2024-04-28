@@ -587,6 +587,7 @@ public class SignUtil {
 		JSONObject bodyObject = new JSONObject();
 		JSONArray arrayFields = new JSONArray();
 		arrayFields.add("person_info.legal_name");
+		arrayFields.add("department_id");
 		JSONArray arrayEmployeeNumberList = new JSONArray();
 		arrayEmployeeNumberList.add(employeeNo);
 		bodyObject.put("fields", arrayFields);
